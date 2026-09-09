@@ -1337,19 +1337,20 @@ async function carregarAnuncios(){
 
   var r = d.resumo || {};
   var lista = d.anuncios || [];
+  // definidas antes do cabeçalho: ele desenha um cartão por resposta
   colunasQuiz = d.colunas_quiz || [];
   perguntaQuiz = d.pergunta || '';
 
   var cabecalho = document.getElementById('resumo-anuncios');
   if(cabecalho){
+    var porResposta = r.por_resposta || {};
+
     cabecalho.innerHTML =
       '<div class="metricas" style="margin-bottom:16px">'
       + [['🎨 Criativos', numero(r.criativos)],
          ['👥 Leads', numero(r.leads),
           r.com_origem < r.leads
             ? numero(r.leads - r.com_origem) + ' sem origem' : ''],
-         ['⚡ Engenheiros', numero(r.engenheiros),
-          r.leads ? Math.round(100*r.engenheiros/r.leads)+'% dos leads' : ''],
          ['💸 Investido', moeda(r.investido)],
          ['🛒 Compradores', numero(r.compradores)],
          ['💰 Receita', moeda(r.receita),
@@ -1361,6 +1362,32 @@ async function carregarAnuncios(){
                + (x[2] ? '<div class="pe">'+x[2]+'</div>' : '')+'</div>';
         }).join('')
       + '</div>'
+
+      // um cartão por resposta do quiz, na mesma ordem das colunas —
+      // é o retrato do público que o lançamento inteiro atraiu
+      + (colunasQuiz.length
+          ? '<div class="int-rotulo">'
+            + (perguntaQuiz ? esc(perguntaQuiz) : 'Respostas do quiz')+'</div>'
+            + '<div class="metricas" style="margin-bottom:16px">'
+            + colunasQuiz.map(function(c){
+                var n = Number(porResposta[c.valor] || 0);
+                var pct = r.leads ? Math.round(100 * n / r.leads) : 0;
+                return '<div class="metrica"'
+                  + (c.engenheiro ? ' style="border-color:var(--destaque)"' : '')+'>'
+                  + '<div class="rot">'+(c.engenheiro ? '⚡ ' : '')+esc(c.label)+'</div>'
+                  + '<div class="num"'
+                  + (c.engenheiro ? ' style="color:var(--destaque)"' : '')+'>'
+                  + numero(n)+'</div>'
+                  + '<div class="pe">'+pct+'% dos leads</div></div>';
+              }).join('')
+            + '<div class="metrica" style="opacity:.7">'
+            + '<div class="rot">🚫 Não respondeu</div>'
+            + '<div class="num">'+numero(r.sem_quiz)+'</div>'
+            + '<div class="pe">'
+            + (r.leads ? Math.round(100*r.sem_quiz/r.leads)+'% dos leads' : '')
+            + '</div></div>'
+            + '</div>'
+          : '')
       + (!r.tem_gasto
           ? '<div class="alerta-caixa">Este lançamento não tem dados de investimento. '
             + 'Leads e engenheiros por criativo aparecem normalmente, mas os custos ficam '
