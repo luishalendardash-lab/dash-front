@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Falta pouco para garantir sua vaga</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --fundo:#0B0A0A;
+  --fundo-2:#1C1A19;
+  --cartao:rgba(0,0,0,.35);
+  --cartao-solido:#171514;
+  --linha:rgba(255,255,255,.22);
+  --linha-forte:rgba(255,255,255,.4);
+  --texto:#FFFFFF;
+  --texto-2:rgba(255,255,255,.78);
+  --texto-3:rgba(255,255,255,.5);
+  --dourado:#FDE296;
+  --dourado-escuro:#DAA520;
+  --menta:#8fd8ab;
+  --verde-1:#00DE00;
+  --verde-2:#009500;
+  --sans:'Jost', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--fundo);color:var(--texto);font-family:var(--sans);
+  line-height:1.55;-webkit-font-smoothing:antialiased;
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:22px;
+  background-image:linear-gradient(160deg, var(--fundo-2) 0%, var(--fundo) 62%);
+}
+.palco{width:100%;max-width:540px}
+
+.barra{height:5px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden;margin-bottom:26px}
+.barra i{display:block;height:100%;border-radius:99px;width:0;
+  background:linear-gradient(90deg, var(--dourado-escuro), var(--dourado));
+  transition:width .35s cubic-bezier(.4,0,.2,1)}
+
+.passo{font-size:12px;color:var(--dourado);font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
+h1{font-size:25px;font-weight:700;line-height:1.28;margin-bottom:6px}
+.ajuda{font-size:15px;color:var(--texto-2);margin-bottom:24px}
+
+.opcoes{display:flex;flex-direction:column;gap:10px}
+.opcao{
+  display:flex;align-items:center;gap:13px;padding:15px 16px;
+  background:var(--cartao);border:1px solid var(--linha);border-radius:8px;
+  cursor:pointer;font-size:15.5px;text-align:left;color:var(--texto);
+  font-family:var(--sans);width:100%;
+  transition:border-color .18s, box-shadow .18s, background .18s;
+}
+.opcao:hover{border-color:var(--linha-forte);background:rgba(0,0,0,.42)}
+.opcao:focus-visible{outline:none;border-color:var(--menta);box-shadow:0 0 0 3px rgba(143,216,171,.25)}
+.opcao.sel{border-color:var(--dourado);background:rgba(253,226,150,.1)}
+.marca{
+  width:21px;height:21px;border-radius:50%;border:1.5px solid var(--linha-forte);
+  flex-shrink:0;display:grid;place-items:center;
+}
+.opcao.sel .marca{border-color:var(--dourado)}
+.opcao.sel .marca::after{content:'';width:10px;height:10px;border-radius:50%;background:var(--dourado)}
+
+.rodape{display:flex;justify-content:space-between;align-items:center;margin-top:26px;gap:12px}
+.voltar{background:none;border:none;color:var(--texto-3);font-size:14px;cursor:pointer;
+  font-family:var(--sans);padding:8px 4px;font-weight:500}
+.voltar:hover{color:var(--dourado)}
+.voltar[hidden]{visibility:hidden}
+
+.aviso{color:#ff9a9a;font-size:14px;margin-top:14px;display:none}
+.aviso.on{display:block}
+
+.fim{text-align:center;padding:20px 0}
+.fim .emoji{font-size:52px;margin-bottom:14px}
+.fim h2{font-size:26px;font-weight:700;margin-bottom:8px;color:var(--dourado)}
+.fim p{color:var(--texto-2);font-size:15.5px;margin-bottom:28px;line-height:1.55}
+.botao-grupo{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;width:100%;
+  padding:15px 22px;border-radius:10px;text-decoration:none;
+  background:linear-gradient(90deg,var(--verde-1) 0%,var(--verde-2) 100%);
+  color:#fff;font-weight:800;font-size:15px;text-transform:uppercase;
+}
+.botao-grupo:hover{filter:brightness(1.06)}
+.carregando{text-align:center;color:var(--texto-3);padding:60px 0}
+.intro{padding:8px 0}
+.intro h1{font-size:28px;margin-bottom:14px;font-weight:700}
+.intro h1 span{color:var(--dourado)}
+.intro p{color:var(--texto-2);font-size:16px;line-height:1.62;margin-bottom:30px}
+.botao-primario{
+  width:100%;padding:15px;border:none;border-radius:10px;cursor:pointer;
+  background:linear-gradient(90deg,var(--verde-1) 0%,var(--verde-2) 100%);
+  color:#fff;font-size:15px;font-weight:800;text-transform:uppercase;
+  font-family:var(--sans);line-height:1.3;
+}
+.botao-primario:hover{filter:brightness(1.06)}
+.caixa-texto{
+  width:100%;min-height:120px;padding:14px 16px;background:var(--cartao);
+  border:1px solid var(--linha);border-radius:8px;color:var(--texto);
+  font-size:15.5px;font-family:var(--sans);line-height:1.5;resize:vertical;
+}
+.caixa-texto::placeholder{color:rgba(255,255,255,.5)}
+.caixa-texto:focus{outline:none;border-color:var(--menta);box-shadow:0 0 0 3px rgba(143,216,171,.25)}
+.oculto{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+</style>
+</head>
+<body>
+
+<div class="palco">
+  <div id="conteudo"><div class="carregando">Carregando…</div></div>
+  <div class="oculto" aria-hidden="true">
+    <input id="empresa" name="empresa" tabindex="-1" autocomplete="off">
+  </div>
+</div>
+
+<script>
+// ============ ÚNICA LINHA DE CONFIGURAÇÃO ============
+var API = 'https://dash.luishalendardash.workers.dev';
+// =====================================================
+
+var params = new URLSearchParams(location.search);
+var inscricaoId = params.get('i') || '';
+var lancamento = params.get('l') || '';
+var perguntas = [];      // todas, como vieram
+var visiveis = [];       // as que valem para este lead, recalculado a cada resposta
+var respostas = {};
+var atual = 0;
+var intro = null;
+
+carregar();
+
+async function carregar(){
+  try{
+    var r = await fetch(API + '/quiz' + (lancamento ? '?l='+encodeURIComponent(lancamento) : ''));
+    var d = await r.json();
+    if(!d.ok || !d.perguntas.length){
+      document.getElementById('conteudo').innerHTML =
+        '<div class="fim"><div class="emoji">👋</div><h2>Tudo certo por aqui</h2>'
+        + '<p>Não há perguntas para responder no momento.</p></div>';
+      return;
+    }
+    lancamento = lancamento || d.lancamento;
+    perguntas = d.perguntas;
+    intro = d.intro;
+    recalcular();
+    if(intro && (intro.titulo || intro.texto)) mostrarIntro();
+    else desenhar();
+  }catch(e){
+    document.getElementById('conteudo').innerHTML =
+      '<div class="fim"><div class="emoji">📡</div><h2>Falha de conexão</h2>'
+      + '<p>Recarregue a página para tentar de novo.</p></div>';
+  }
+}
+
+function mostrarIntro(){
+  document.getElementById('conteudo').innerHTML =
+    '<div class="intro">'
+    + '<h1>'+(intro.titulo || 'Antes de continuar')+'</h1>'
+    + (intro.texto ? '<p>'+intro.texto+'</p>' : '')
+    + '<button class="botao-primario" onclick="comecar()">'
+    + (intro.botao || 'Responder')+'</button></div>';
+}
+
+function comecar(){ atual = 0; desenhar(); }
+
+/** Uma pergunta com condição só entra se a resposta indicada bater. */
+function cabe(q){
+  if(!q.condicao || !q.condicao.chave) return true;
+  var dada = respostas[q.condicao.chave];
+  if(dada == null) return false;
+  var aceitos = q.condicao.valores || [];
+  return aceitos.indexOf(dada) !== -1;
+}
+
+function recalcular(){
+  visiveis = perguntas.filter(cabe);
+}
+
+function desenhar(){
+  recalcular();
+  if(atual >= visiveis.length){ enviar(); return; }
+
+  var q = visiveis[atual];
+  var progresso = (atual / visiveis.length) * 100;
+
+  var corpo;
+  if(q.tipo === 'texto'){
+    var atualTexto = respostas[q.chave] || '';
+    corpo = '<textarea class="caixa-texto" id="texto-livre" '
+      + 'placeholder="Escreva aqui...">'+atualTexto+'</textarea>'
+      + '<button class="botao-primario" style="margin-top:14px" onclick="responderTexto()">'
+      + 'Avançar</button>';
+  } else {
+    corpo = '<div class="opcoes">'
+      + q.opcoes.map(function(o){
+          var sel = respostas[q.chave] === o.valor ? ' sel' : '';
+          return '<button class="opcao'+sel+'" onclick="escolher(\'' + o.valor + '\')">'
+               + '<span class="marca"></span><span>'+o.label+'</span></button>';
+        }).join('')
+      + '</div>';
+  }
+
+  document.getElementById('conteudo').innerHTML =
+    '<div class="barra"><i style="width:'+progresso+'%"></i></div>'
+    + '<div class="passo">Pergunta '+(atual+1)+' de '+visiveis.length+'</div>'
+    + '<h1>'+q.enunciado+'</h1>'
+    + (q.ajuda ? '<div class="ajuda">'+q.ajuda+'</div>' : '<div style="height:18px"></div>')
+    + corpo
+    + '<div class="aviso" id="aviso">Responda para continuar</div>'
+    + '<div class="rodape">'
+    + '<button class="voltar" onclick="voltar()"'+(atual===0?' hidden':'')+'>← Voltar</button>'
+    + '</div>';
+
+  requestAnimationFrame(function(){
+    var b = document.querySelector('.barra i');
+    if(b) b.style.width = progresso + '%';
+  });
+}
+
+function escolher(valor){
+  var q = visiveis[atual];
+  respostas[q.chave] = valor;
+
+  // a escolha pode abrir ou fechar perguntas seguintes
+  recalcular();
+  desenhar();
+
+  setTimeout(function(){ atual++; desenhar(); }, 260);
+}
+
+function responderTexto(){
+  var q = visiveis[atual];
+  var campo = document.getElementById('texto-livre');
+  var v = (campo.value || '').trim();
+
+  if(q.obrigatoria && !v){
+    document.getElementById('aviso').classList.add('on');
+    campo.focus();
+    return;
+  }
+  respostas[q.chave] = v;
+  atual++;
+  desenhar();
+}
+
+function voltar(){
+  if(atual > 0){ atual--; desenhar(); }
+}
+
+async function enviar(){
+  document.getElementById('conteudo').innerHTML =
+    '<div class="carregando">Salvando suas respostas…</div>';
+
+  try{
+    var r = await fetch(API + '/quiz', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        inscricao_id: inscricaoId || null,
+        lancamento: lancamento,
+        respostas: respostas,
+        empresa: document.getElementById('empresa').value
+      })
+    });
+    var d = await r.json();
+
+    if(!d.ok){
+      document.getElementById('conteudo').innerHTML =
+        '<div class="fim"><div class="emoji">🤔</div><h2>Não encontramos seu cadastro</h2>'
+        + '<p>'+(d.erro||'')+'<br>Volte à página de inscrição e tente novamente.</p></div>';
+      return;
+    }
+
+    document.getElementById('conteudo').innerHTML =
+      '<div class="barra"><i style="width:100%"></i></div>'
+      + '<div class="fim"><div class="emoji">💬</div>'
+      + '<h2>Entrando no grupo…</h2>'
+      + '<p>Se o WhatsApp não abrir sozinho em alguns segundos, '
+      + '<a href="'+d.grupo_url+'" style="color:var(--dourado)">toque aqui</a>.</p></div>';
+
+    setTimeout(function(){ window.location.href = d.grupo_url; }, 700);
+
+  }catch(e){
+    document.getElementById('conteudo').innerHTML =
+      '<div class="fim"><div class="emoji">📡</div><h2>Falha ao salvar</h2>'
+      + '<p>Recarregue a página e responda novamente.</p></div>';
+  }
+}
+</script>
+</body>
+</html>
