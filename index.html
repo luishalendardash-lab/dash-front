@@ -95,7 +95,16 @@ select{
   border-radius:var(--raio-p);color:var(--texto);font-size:13.5px;font-family:var(--sans);
   box-shadow:var(--sombra);cursor:pointer;
 }
-.corpo{display:grid;grid-template-columns:1fr 232px;gap:22px;padding:22px 26px 60px;max-width:1500px;margin:0 auto}
+.corpo{
+  display:grid;
+  /* minmax(0,1fr) em vez de 1fr: por padrão a coluna do grid cresce até
+     caber o conteúdo, então uma tabela larga estica a página inteira.
+     O zero como mínimo faz a coluna respeitar a largura disponível e
+     deixa a rolagem acontecer dentro do painel. */
+  grid-template-columns:minmax(0,1fr) 232px;
+  gap:22px;padding:22px 26px 60px;max-width:1500px;margin:0 auto;
+}
+.corpo > *{min-width:0}
 @media(max-width:960px){.corpo{grid-template-columns:1fr}}
 .navegacao{display:flex;flex-direction:column;gap:6px;position:sticky;top:84px;align-self:start}
 .nav-item{
@@ -116,6 +125,8 @@ select{
 .painel{
   background:var(--vidro);backdrop-filter:blur(14px);border:1px solid var(--borda);
   border-radius:var(--raio);padding:20px 22px;margin-bottom:20px;box-shadow:var(--sombra),var(--relevo);
+  min-width:0;              /* deixa o painel encolher em vez de esticar */
+  overflow:hidden;          /* segura o conteúdo largo dentro dele */
 }
 .painel-topo{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:18px;flex-wrap:wrap}
 .painel-titulo{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:600;letter-spacing:-.01em}
@@ -190,7 +201,38 @@ tbody tr:hover{background:var(--fundo)}
 .num-td{font-family:var(--mono);text-align:right;white-space:nowrap}
 .pilula{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11.5px;background:var(--fundo);color:var(--texto-2)}
 .thumb{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--fundo);border:1px solid var(--borda)}
-.rolagem{overflow-x:auto}
+.rolagem{
+  overflow-x:auto;
+  /* sem largura máxima, a tabela empurra o painel e o painel empurra a
+     página: a barra de rolagem aparece no navegador em vez de aparecer
+     aqui dentro. min-width:0 é o que permite o grid encolher. */
+  max-width:100%;
+  min-width:0;
+  /* a barra fica sempre visível quando há transbordo: com ela escondida
+     no macOS, ninguém descobre que existe mais coluna à direita */
+  scrollbar-width:thin;
+  scrollbar-color:var(--borda-forte) transparent;
+  padding-bottom:2px;
+}
+.rolagem::-webkit-scrollbar{height:9px}
+.rolagem::-webkit-scrollbar-track{background:var(--fundo);border-radius:6px}
+.rolagem::-webkit-scrollbar-thumb{
+  background:var(--borda-forte);border-radius:6px;border:2px solid var(--fundo);
+}
+.rolagem::-webkit-scrollbar-thumb:hover{background:var(--texto-3)}
+
+/* a primeira coluna acompanha a rolagem: sem ela, você rola para ver o
+   ROAS e perde de vista qual criativo está lendo */
+.rolagem table th:first-child,
+.rolagem table td:first-child{
+  position:sticky;left:0;z-index:2;
+  background:var(--vidro-solido);
+}
+.rolagem table th:first-child{z-index:3}
+.painel{min-width:0;max-width:100%}
+/* a tabela pode passar da largura do painel — é para isso que existe a
+   rolagem — mas nunca empurra o layout */
+.rolagem table{min-width:max-content}
 .grupos th{text-align:center;font-size:11.5px;border-bottom:none;padding-bottom:4px}
 .g-meta{background:rgba(120,140,170,.07)}
 .g-track{background:rgba(227,179,65,.07)}
