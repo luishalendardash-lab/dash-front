@@ -848,6 +848,14 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
         <div id="recorrencia"></div>
       </section>
 
+      <section class="painel" id="painel-grupo">
+        <div class="painel-topo">
+          <div class="painel-titulo"><span class="emoji">💬</span> Entrada no grupo</div>
+          <button class="btn" onclick="carregarGrupo()">Atualizar</button>
+        </div>
+        <div id="conteudo-grupo"><div class="carregando">Carregando…</div></div>
+      </section>
+
       <section class="painel">
         <div class="painel-topo">
           <div class="painel-titulo"><span class="emoji">👥</span> Leads</div>
@@ -4307,6 +4315,153 @@ async function limparInvestimento(origem){
     }
   }catch(e){
     res.innerHTML = '<span style="color:var(--negativo)">'+esc(e.message)+'</span>';
+  }
+}
+
+
+// ================= ENTRADA NO GRUPO =================
+// Dois números, porque um só engana: o clique é registrado pela própria
+// dash e não depende de ninguém; a entrada vem do SendFlux por webhook,
+// e webhook falha. A diferença entre eles é o diagnóstico.
+async function carregarGrupo(){
+  var alvo = document.getElementById('conteudo-grupo');
+  if(!alvo) return;
+
+  var d;
+  try{ d = await api('/api/grupo?lancamento='+encodeURIComponent(lancamentoAtual)); }
+  catch(e){ alvo.innerHTML = '<div class="vazio">⚠️ '+esc(e.message)+'</div>'; return; }
+
+  if(!d.ok){ alvo.innerHTML = '<div class="vazio">'+esc(d.erro||'sem dados')+'</div>'; return; }
+
+  var suspeito = Number(d.clicou_sem_confirmar) > Number(d.entrou) * 0.3;
+
+  alvo.innerHTML =
+    '<div class="metricas" style="margin-bottom:14px">'
+    + [['👥 Leads', numero(d.leads), ''],
+       ['🧩 Fizeram o quiz', numero(d.fizeram_quiz),
+        d.leads ? Math.round(100*d.fizeram_quiz/d.leads)+'% dos leads' : ''],
+       ['👆 Clicaram no link', numero(d.clicaram), 'registrado pela dash'],
+       ['✅ Entraram no grupo', numero(d.entraram),
+        (d.pct_entrou != null ? String(d.pct_entrou).replace('.',',')+'% dos leads' : '')],
+       ['⚡ Engenheiros no grupo', numero(d.engenheiros_entraram), '']]
+      .map(function(x, i){
+        return '<div class="metrica"'
+          + (i === 3 ? ' style="border-color:var(--positivo)"' : '')+'>'
+          + '<div class="rot">'+x[0]+'</div>'
+          + '<div class="num"'+(i === 3 ? ' style="color:var(--positivo)"' : '')+'>'
+          + x[1]+'</div>'
+          + (x[2] ? '<div class="pe">'+x[2]+'</div>' : '')+'</div>';
+      }).join('')
+    + '</div>'
+
+    + (Number(d.clicou_sem_confirmar)
+        ? '<div class="alerta-caixa'+(suspeito ? ' perigo' : '')+'">'
+          + '<b>'+numero(d.clicou_sem_confirmar)+' clicaram e não constam no grupo.</b> '
+          + (suspeito
+              ? 'São muitos para ser só desistência — provavelmente o webhook do '
+                + 'SendFlux falhou em parte deles. '
+              : 'Podem ter desistido na porta do grupo ou o aviso do SendFlux não chegou. ')
+          + '<button class="mini" style="margin-left:6px" '
+          + 'onclick="verLeadsGrupo(\'clicou_sem_entrar\')">Ver quem são</button>'
+          + '</div>'
+        : '')
+
+    + (Number(d.entrou_sem_clicar)
+        ? '<div class="nota-tabela">'+numero(d.entrou_sem_clicar)+' entraram sem passar '
+          + 'pelo link da dash — vieram por outro caminho.</div>'
+        : '')
+
+    + '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
+    + '<button class="mini" onclick="verLeadsGrupo(\'entrou\')">Quem entrou</button>'
+    + '<button class="mini" onclick="verLeadsGrupo(\'nao_entrou\')">Quem não entrou</button>'
+    + '<button class="mini" onclick="importarEntradaGrupo()">📋 Marcar pela lista do SendFlux</button>'
+    + '</div>'
+    + '<div id="lista-grupo"></div>';
+}
+
+async function verLeadsGrupo(filtro){
+  var alvo = document.getElementById('lista-grupo');
+  alvo.innerHTML = '<div class="carregando">Carregando…</div>';
+
+  var d;
+  try{
+    d = await api('/api/leads-grupo?lancamento='+encodeURIComponent(lancamentoAtual)
+                  + '&filtro='+encodeURIComponent(filtro));
+  }catch(e){ alvo.innerHTML = '<div class="vazio">'+esc(e.message)+'</div>'; return; }
+
+  var leads = d.leads || [];
+  if(!leads.length){ alvo.innerHTML = '<div class="vazio">Nenhum lead nesse grupo.</div>'; return; }
+
+  alvo.innerHTML =
+    '<div class="rolagem" style="margin-top:12px;max-height:420px;overflow-y:auto">'
+    + '<table><thead><tr><th>Lead</th><th>Quiz</th><th>Clicou</th>'
+    + '<th>No grupo</th><th class="num-td">Quando</th></tr></thead><tbody>'
+    + leads.map(function(l){
+        return '<tr><td><div style="font-weight:500">'+esc(l.nome || l.email || '—')
+          + (l.engenheiro ? ' <span class="pilula" style="font-size:10px">eng</span>' : '')
+          + '</div><div class="sub">'+esc(l.telefone || l.email || '')+'</div></td>'
+          + '<td>'+(l.fez_quiz ? '✅' : '—')+'</td>'
+          + '<td>'+(l.clicou ? '👆' : '—')+'</td>'
+          + '<td>'+(l.entrou
+              ? '<span style="color:var(--positivo)">✅ sim</span>'
+              : '<span style="color:var(--texto-3)">não</span>')+'</td>'
+          + '<td class="num-td" style="font-size:12px">'
+          + (l.quando ? dataCurta(l.quando) : '—')+'</td></tr>';
+      }).join('')
+    + '</tbody></table></div>'
+    + '<div class="nota-tabela">'+numero(leads.length)+' leads.</div>';
+}
+
+/** Quando o webhook falha, a lista do SendFlux recupera o dado. */
+async function importarEntradaGrupo(){
+  document.getElementById('modal-int').innerHTML =
+    '<h2 style="font-size:19px;font-weight:600;margin-bottom:4px">Marcar quem entrou</h2>'
+    + '<p style="font-size:13px;color:var(--texto-2);margin-bottom:16px;line-height:1.55">'
+    + 'Cole os telefones da lista do SendFlux, um por linha. A dash marca quem '
+    + 'encontrar e diz quantos não bateram.</p>'
+    + '<textarea id="fones-grupo" rows="10" placeholder="5551999408577&#10;5551988887777"'
+    + ' style="width:100%;font-family:var(--mono);font-size:12.5px"></textarea>'
+    + '<div id="res-marcar" style="margin-top:12px"></div>'
+    + '<div style="display:flex;gap:10px;margin-top:14px">'
+    + '<button class="btn principal" onclick="aplicarEntradaGrupo()">Marcar</button>'
+    + '<button class="btn" onclick="fecharIntegracao()">Fechar</button></div>';
+
+  document.getElementById('cortina-int').classList.add('on');
+  document.getElementById('modal-int').classList.add('on');
+}
+
+async function aplicarEntradaGrupo(){
+  var texto = document.getElementById('fones-grupo').value || '';
+  var fones = texto.split(/[\n,;]+/).map(function(s){ return s.trim(); })
+                   .filter(Boolean);
+
+  var res = document.getElementById('res-marcar');
+  if(!fones.length){
+    res.innerHTML = '<div class="alerta-caixa">Cole ao menos um telefone.</div>';
+    return;
+  }
+
+  res.innerHTML = '<div class="carregando">Marcando…</div>';
+
+  try{
+    var r = await fetch(API + '/api/marcar-grupo?lancamento='
+                        + encodeURIComponent(lancamentoAtual), {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify({ telefones: fones })
+    });
+    var d = await r.json();
+
+    res.innerHTML = d.ok
+      ? '<div class="alerta-caixa">✅ '+numero(d.marcados)+' marcados'
+        + (d.nao_encontrados
+            ? ' · '+numero(d.nao_encontrados)+' não estão neste lançamento' : '')
+        + '</div>'
+      : '<div class="alerta-caixa perigo">'+esc(d.erro||'falhou')+'</div>';
+
+    if(d.ok) setTimeout(function(){ fecharIntegracao(); carregarGrupo(); }, 1600);
+  }catch(e){
+    res.innerHTML = '<div class="alerta-caixa perigo">'+esc(e.message)+'</div>';
   }
 }
 
