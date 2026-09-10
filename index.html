@@ -201,6 +201,52 @@ tbody tr:hover{background:var(--fundo)}
 .num-td{font-family:var(--mono);text-align:right;white-space:nowrap}
 .pilula{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11.5px;background:var(--fundo);color:var(--texto-2)}
 .thumb{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--fundo);border:1px solid var(--borda)}
+.email-grade{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,420px);gap:22px}
+@media(max-width:1100px){.email-grade{grid-template-columns:1fr}}
+.email-editor{min-width:0}
+.email-lado{min-width:0;position:sticky;top:84px;align-self:start}
+#preview-email{
+  width:100%;height:520px;border:1px solid var(--borda);border-radius:12px;
+  background:#fff;display:block;
+}
+.email-temas{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.tema-op{
+  border:1.5px solid var(--borda);border-radius:10px;padding:8px;cursor:pointer;
+  background:var(--vidro-solido);text-align:center;transition:border-color .15s;
+}
+.tema-op:hover{border-color:var(--borda-forte)}
+.tema-op.on{border-color:var(--destaque)}
+.tema-amostra{height:26px;border-radius:6px;margin-bottom:6px}
+.tema-nome{font-size:11px;color:var(--texto-2)}
+.email-add{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.solta-img{
+  border:1.5px dashed var(--borda-forte);border-radius:10px;padding:16px;
+  text-align:center;cursor:pointer;margin-bottom:8px;transition:border-color .15s,background .15s;
+}
+.solta-img:hover,.solta-img.on{border-color:var(--destaque);background:var(--vidro)}
+.solta-txt{font-size:13px;color:var(--texto-2);line-height:1.6}
+.solta-txt span{font-size:11.5px;color:var(--texto-3)}
+.previa-img{max-width:100%;max-height:150px;border-radius:8px;display:block;margin:0 auto}
+.bloco-em{
+  border:1px solid var(--borda);border-radius:12px;padding:12px 14px;margin-bottom:10px;
+  background:var(--vidro-solido);
+}
+.bloco-topo{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.bloco-tipo{
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--texto-3);flex:1;
+}
+.bloco-acao{
+  background:none;border:none;color:var(--texto-3);cursor:pointer;font-size:14px;
+  padding:2px 5px;border-radius:5px;
+}
+.bloco-acao:hover{background:var(--vidro);color:var(--texto)}
+.var-chip{
+  display:inline-block;background:var(--vidro-solido);border:1px solid var(--borda);
+  border-radius:7px;padding:4px 9px;margin:0 5px 5px 0;font-family:var(--mono);
+  font-size:11.5px;cursor:pointer;transition:border-color .15s;
+}
+.var-chip:hover{border-color:var(--destaque);color:var(--destaque)}
 .rolagem{
   overflow-x:auto;
   /* sem largura máxima, a tabela empurra o painel e o painel empurra a
@@ -674,6 +720,80 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
      </div>
 
      <!-- ============ TUTORIAL ============ -->
+     <div class="tela" id="tela-email">
+      <section class="painel">
+        <div class="painel-topo">
+          <div class="painel-titulo"><span class="emoji">✉️</span> Gerador de e-mail</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" onclick="novoEmail()">Começar do zero</button>
+            <button class="btn" onclick="abrirModelosEmail()">📁 Modelos</button>
+            <button class="btn principal" onclick="copiarHtmlEmail()" id="btn-copiar-email">
+              📋 Copiar HTML</button>
+          </div>
+        </div>
+
+        <div class="email-grade">
+          <div class="email-editor">
+            <div class="int-rotulo">Aparência</div>
+            <div class="email-temas" id="temas-email"></div>
+
+            <div class="campo" style="margin-top:16px">
+              <label for="em-largura">Largura do e-mail</label>
+              <select id="em-largura" onchange="desenharPreview()">
+                <option value="600">600px — padrão de mercado</option>
+                <option value="520">520px — mais estreito</option>
+                <option value="680">680px — mais largo</option>
+              </select>
+            </div>
+
+            <div class="int-rotulo" style="margin-top:20px">Conteúdo</div>
+            <div id="blocos-email"></div>
+
+            <div class="email-add">
+              <button class="mini" onclick="addBloco('titulo')">+ Título</button>
+              <button class="mini" onclick="addBloco('texto')">+ Texto</button>
+              <button class="mini" onclick="addBloco('botao')">+ Botão</button>
+              <button class="mini" onclick="addBloco('imagem')">+ Imagem</button>
+              <button class="mini" onclick="addBloco('destaque')">+ Destaque</button>
+              <button class="mini" onclick="addBloco('lista')">+ Lista</button>
+              <button class="mini" onclick="addBloco('divisor')">+ Divisor</button>
+              <button class="mini" onclick="addBloco('espaco')">+ Espaço</button>
+            </div>
+
+            <div class="int-rotulo" style="margin-top:20px">Rodapé</div>
+            <div class="campo">
+              <label for="em-rodape">Texto do rodapé</label>
+              <textarea id="em-rodape" rows="2" oninput="desenharPreview()"
+                placeholder="Você recebeu este e-mail porque se inscreveu..."></textarea>
+            </div>
+          </div>
+
+          <div class="email-lado">
+            <div class="int-rotulo">Prévia</div>
+            <iframe id="preview-email" title="Prévia do e-mail"></iframe>
+
+            <div class="int-rotulo" style="margin-top:18px">Variáveis do SellFlux</div>
+            <div style="font-size:12px;color:var(--texto-3);margin-bottom:8px;line-height:1.5">
+              Clique para copiar. Cole dentro de qualquer texto ou link.
+            </div>
+            <div id="vars-email"></div>
+
+            <div class="campo" style="margin-top:14px">
+              <label for="em-var-nova">Campo personalizado</label>
+              <div style="display:flex;gap:6px">
+                <input id="em-var-nova" placeholder="nome_da_chave"
+                  style="flex:1;font-family:var(--mono);font-size:12px">
+                <button class="mini" onclick="copiarVarNova()">Copiar</button>
+              </div>
+              <div style="font-size:11.5px;color:var(--texto-3);margin-top:4px">
+                O mesmo nome que você criou em Campos personalizados no SellFlux.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+     </div>
+
      <div class="tela" id="tela-tutorial">
       <section class="painel">
         <div class="painel-topo">
@@ -883,6 +1003,7 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
       <button class="nav-item" onclick="irPara('vendas',this)"><span class="ico">🛒</span> Vendas</button>
       <div class="nav-titulo">Ferramentas</div>
       <button class="nav-item" onclick="irPara('quiz',this)"><span class="ico">🧩</span> Quiz</button>
+      <button class="nav-item" onclick="irPara('email',this)"><span class="ico">✉️</span> Gerador de e-mail</button>
       <button class="nav-item" onclick="irPara('integracoes',this)"><span class="ico">🔗</span> Integrações</button>
       <button class="nav-item" onclick="irPara('ajustes',this)"><span class="ico">⚙️</span> Ajustes</button>
       <button class="nav-item" onclick="irPara('tutorial',this)"><span class="ico">📖</span> Tutorial de uso</button>
@@ -1328,6 +1449,7 @@ function irPara(tela, el){
 
   if(tela === 'anuncios'){ carregarAnuncios(); carregarGastoMeta(); }
   if(tela === 'quiz') carregarQuiz();
+  if(tela === 'email') carregarEmail();
   if(tela === 'vendas'){
     carregarResultado(); carregarPagamentosPendentes(); carregarVendas();
   }
@@ -4463,6 +4585,566 @@ async function aplicarEntradaGrupo(){
   }catch(e){
     res.innerHTML = '<div class="alerta-caixa perigo">'+esc(e.message)+'</div>';
   }
+}
+
+
+
+/**
+ * Modelos prontos. Não são enfeite: cada um resolve um momento
+ * específico do lançamento, e o texto já vem no formato que costuma
+ * funcionar — curto, com uma ação só.
+ */
+var MODELOS_EMAIL = [
+  {
+    nome: 'Confirmação de inscrição',
+    quando: 'logo depois da captura',
+    tema: 'escuro',
+    rodape: 'Você recebeu este e-mail porque se inscreveu na aula gratuita.',
+    blocos: [
+      { tipo:'titulo', texto:'Sua vaga está confirmada, {{first_name}}!' },
+      { tipo:'texto',  texto:'Você garantiu presença na aula. Salve a data e entre no '
+                           + 'grupo do WhatsApp — é por lá que eu envio o link e os avisos.' },
+      { tipo:'botao',  texto:'Entrar no grupo do WhatsApp', url:'https://' },
+      { tipo:'destaque', texto:'Quem não entra no grupo costuma perder o aviso da aula. '
+                             + 'Leva dez segundos.' }
+    ]
+  },
+  {
+    nome: 'Lembrete de aula',
+    quando: 'horas antes de começar',
+    tema: 'escuro',
+    rodape: 'Você recebeu este e-mail porque se inscreveu na aula gratuita.',
+    blocos: [
+      { tipo:'titulo', texto:'Começa hoje às 20h' },
+      { tipo:'texto',  texto:'{{first_name}}, a aula é hoje. Deixe o celular por perto e '
+                           + 'entre alguns minutos antes.' },
+      { tipo:'botao',  texto:'Assistir agora', url:'https://' },
+      { tipo:'lista',  texto:'O que você vai ver\nComo o mercado paga por esse trabalho\n'
+                           + 'O caminho para o primeiro laudo' }
+    ]
+  },
+  {
+    nome: 'Abertura de carrinho',
+    quando: 'quando as vendas abrem',
+    tema: 'escuro',
+    rodape: 'Dúvidas? Responda este e-mail.',
+    blocos: [
+      { tipo:'titulo', texto:'As inscrições estão abertas' },
+      { tipo:'texto',  texto:'{{first_name}}, as vagas para a formação abriram agora e '
+                           + 'ficam disponíveis por tempo limitado.' },
+      { tipo:'botao',  texto:'Quero minha vaga', url:'https://' },
+      { tipo:'divisor' },
+      { tipo:'texto',  texto:'Se tiver qualquer dúvida, é só responder este e-mail.' }
+    ]
+  },
+  {
+    nome: 'Recuperação de pagamento',
+    quando: 'PIX ou boleto gerado e não pago',
+    tema: 'claro',
+    rodape: 'Se você já pagou, pode ignorar este e-mail.',
+    blocos: [
+      { tipo:'titulo', texto:'Seu pagamento ainda não caiu' },
+      { tipo:'texto',  texto:'{{first_name}}, gerei aqui o seu {{product}} mas o pagamento '
+                           + 'ainda não foi confirmado. O link continua válido.' },
+      { tipo:'botao',  texto:'Finalizar pagamento', url:'{{link}}' },
+      { tipo:'destaque', texto:'Se você já pagou nas últimas horas, desconsidere — a '
+                             + 'confirmação pode demorar um pouco.' }
+    ]
+  },
+  {
+    nome: 'Últimas horas',
+    quando: 'fechamento do carrinho',
+    tema: 'vermelho',
+    rodape: 'Você recebeu este e-mail porque se inscreveu na nossa lista.',
+    blocos: [
+      { tipo:'titulo', texto:'Fecha hoje à meia-noite' },
+      { tipo:'texto',  texto:'{{first_name}}, esta é a última chamada. Depois disso as '
+                           + 'inscrições fecham e a próxima turma só abre daqui a alguns meses.' },
+      { tipo:'botao',  texto:'Garantir minha vaga agora', url:'https://' }
+    ]
+  }
+];
+
+function abrirModelosEmail(){
+  document.getElementById('modal-int').innerHTML =
+    '<h2 style="font-size:19px;font-weight:600;margin-bottom:4px">Modelos de e-mail</h2>'
+    + '<p style="font-size:13px;color:var(--texto-2);margin-bottom:16px;line-height:1.55">'
+    + 'Cada um já vem escrito para um momento do lançamento. Escolha e edite o que quiser — '
+    + 'isto substitui o conteúdo atual.</p>'
+    + '<div style="display:flex;flex-direction:column;gap:8px;max-height:56vh;overflow-y:auto">'
+    + MODELOS_EMAIL.map(function(m, i){
+        return '<button class="opcao-produto" onclick="usarModeloEmail('+i+')" '
+          + 'style="cursor:pointer"><span style="flex:1;text-align:left">'
+          + '<span style="display:block;font-weight:500">'+esc(m.nome)+'</span>'
+          + '<span style="font-size:12px;color:var(--texto-3)">'+esc(m.quando)+'</span>'
+          + '</span></button>';
+      }).join('')
+    + '</div>'
+    + '<button class="btn" style="margin-top:14px" onclick="fecharIntegracao()">Fechar</button>';
+
+  document.getElementById('cortina-int').classList.add('on');
+  document.getElementById('modal-int').classList.add('on');
+}
+
+function usarModeloEmail(i){
+  var m = MODELOS_EMAIL[i];
+  if(!m) return;
+
+  // cópia profunda: sem isso, editar o e-mail altera o modelo e o
+  // próximo uso vem com o texto de antes
+  blocosEmail = JSON.parse(JSON.stringify(m.blocos));
+  temaEmail = m.tema || 'escuro';
+
+  var r = document.getElementById('em-rodape');
+  if(r) r.value = m.rodape || '';
+
+  desenharTemasEmail();
+  desenharBlocos();
+  fecharIntegracao();
+  mostrarToast('Modelo "' + m.nome + '" carregado');
+}
+
+
+/**
+ * Upload da imagem para o R2.
+ *
+ * O e-mail busca a imagem pela rede: não existe anexar arquivo local.
+ * Por isso a imagem precisa estar num endereço público antes de o
+ * e-mail ser enviado.
+ */
+async function enviarImagem(arquivo, i){
+  if(!arquivo) return;
+
+  var prog = document.getElementById('prog-' + i);
+  var mostrar = function(txt, cor){
+    if(prog) prog.innerHTML = '<span style="color:'+(cor||'var(--texto-2)')+'">'+txt+'</span>';
+  };
+
+  if(!/^image\//.test(arquivo.type)){
+    mostrar('Só imagem: JPG, PNG, GIF ou WEBP.', 'var(--negativo)');
+    return;
+  }
+
+  if(arquivo.size > 5 * 1024 * 1024){
+    mostrar('A imagem tem '+(arquivo.size/1048576).toFixed(1)+' MB. O limite é 5 MB.',
+            'var(--negativo)');
+    return;
+  }
+
+  mostrar('Enviando ' + (arquivo.size/1024).toFixed(0) + ' KB…');
+
+  var dados = new FormData();
+  dados.append('arquivo', arquivo);
+
+  try{
+    var r = await fetch(API + '/api/upload', {
+      method:'POST',
+      headers:{ Authorization: 'Bearer ' + sessao.token },
+      body: dados
+    });
+    var d = await r.json();
+
+    if(d.ok){
+      blocosEmail[i].url = d.url;
+      if(!blocosEmail[i].alt){
+        // descrição a partir do nome do arquivo: melhor que vazio,
+        // porque é o que aparece quando o cliente bloqueia imagens
+        blocosEmail[i].alt = String(arquivo.name || '')
+          .replace(/\.[^.]+$/,'').replace(/[-_]+/g,' ').trim();
+      }
+      desenharBlocos();
+      mostrarToast('Imagem enviada');
+    } else {
+      mostrar(esc(d.erro || 'falhou'), 'var(--negativo)');
+    }
+  }catch(e){
+    mostrar(esc(e.message), 'var(--negativo)');
+  }
+}
+
+function soltarImagem(ev, i){
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('on');
+  var arq = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+  if(arq) enviarImagem(arq, i);
+}
+
+// ================= GERADOR DE E-MAIL =================
+//
+// O HTML gerado usa tabelas e estilo em linha, não divs com CSS no
+// topo. Não é escolha de gosto: o Outlook renderiza com o motor do
+// Word, que ignora float, flex e boa parte do CSS moderno. Tabela
+// aninhada com width fixo é o que chega igual em todo lugar.
+
+var TEMAS_EMAIL = [
+  { id:'escuro',  nome:'Escuro',    fundo:'#0F0E0E', papel:'#1A1918', texto:'#F2F1EF',
+    suave:'#A8A29C', destaque:'#E8B84B', botaoTexto:'#1A1409', borda:'#2E2C2A' },
+  { id:'claro',   nome:'Claro',     fundo:'#F4F3F1', papel:'#FFFFFF', texto:'#1A1918',
+    suave:'#6B6560', destaque:'#C8963E', botaoTexto:'#FFFFFF', borda:'#E4E1DD' },
+  { id:'azul',    nome:'Azul',      fundo:'#EEF2F7', papel:'#FFFFFF', texto:'#132033',
+    suave:'#5A6B80', destaque:'#2563EB', botaoTexto:'#FFFFFF', borda:'#DCE3ED' },
+  { id:'verde',   nome:'Verde',     fundo:'#EFF4F0', papel:'#FFFFFF', texto:'#12251A',
+    suave:'#56705F', destaque:'#15803D', botaoTexto:'#FFFFFF', borda:'#DDE7E0' },
+  { id:'vermelho',nome:'Vermelho',  fundo:'#F7EFEF', papel:'#FFFFFF', texto:'#2A1414',
+    suave:'#7A5A5A', destaque:'#DC2626', botaoTexto:'#FFFFFF', borda:'#EDDCDC' },
+  { id:'roxo',    nome:'Roxo',      fundo:'#F2EFF7', papel:'#FFFFFF', texto:'#1E1430',
+    suave:'#655A7A', destaque:'#7C3AED', botaoTexto:'#FFFFFF', borda:'#E4DCED' }
+];
+
+var VARS_SELLFLUX = [
+  { chave:'name',       rotulo:'Nome' },
+  { chave:'first_name', rotulo:'Primeiro nome' },
+  { chave:'email',      rotulo:'E-mail' },
+  { chave:'phone',      rotulo:'Telefone' },
+  { chave:'product',    rotulo:'Produto' },
+  { chave:'value',      rotulo:'Valor' },
+  { chave:'link',       rotulo:'Link' },
+  { chave:'unsubscribe',rotulo:'Descadastro' }
+];
+
+var temaEmail = 'escuro';
+var blocosEmail = [];
+
+function novoEmail(){
+  blocosEmail = [
+    { tipo:'titulo', texto:'Olá, {{first_name}}!' },
+    { tipo:'texto',  texto:'Escreva aqui a sua mensagem. Use as variáveis do lado para '
+                         + 'personalizar com os dados do lead.' },
+    { tipo:'botao',  texto:'Quero garantir minha vaga', url:'https://' }
+  ];
+  var r = document.getElementById('em-rodape');
+  if(r) r.value = 'Você recebeu este e-mail porque se inscreveu na nossa lista.';
+  desenharBlocos();
+}
+
+function addBloco(tipo){
+  var padrao = {
+    titulo:   { tipo:'titulo', texto:'Novo título' },
+    texto:    { tipo:'texto', texto:'Novo parágrafo.' },
+    botao:    { tipo:'botao', texto:'Clique aqui', url:'https://' },
+    imagem:   { tipo:'imagem', url:'', alt:'', link:'' },
+    destaque: { tipo:'destaque', texto:'Um aviso ou informação que merece atenção.' },
+    lista:    { tipo:'lista', texto:'Primeiro item\nSegundo item\nTerceiro item' },
+    divisor:  { tipo:'divisor' },
+    espaco:   { tipo:'espaco', altura:24 }
+  }[tipo];
+
+  if(!padrao) return;
+  blocosEmail.push(padrao);
+  desenharBlocos();
+}
+
+function moverBloco(i, direcao){
+  var j = i + direcao;
+  if(j < 0 || j >= blocosEmail.length) return;
+  var tmp = blocosEmail[i];
+  blocosEmail[i] = blocosEmail[j];
+  blocosEmail[j] = tmp;
+  desenharBlocos();
+}
+
+function removerBloco(i){
+  blocosEmail.splice(i, 1);
+  desenharBlocos();
+}
+
+function mudarBloco(i, campo, valor){
+  if(!blocosEmail[i]) return;
+  blocosEmail[i][campo] = valor;
+  desenharPreview();
+}
+
+function desenharBlocos(){
+  var alvo = document.getElementById('blocos-email');
+  if(!alvo) return;
+
+  var nomes = { titulo:'Título', texto:'Texto', botao:'Botão', imagem:'Imagem',
+                destaque:'Destaque', lista:'Lista', divisor:'Divisor', espaco:'Espaço' };
+
+  alvo.innerHTML = blocosEmail.map(function(b, i){
+    var corpo = '';
+
+    if(b.tipo === 'titulo' || b.tipo === 'texto' || b.tipo === 'destaque'){
+      corpo = '<textarea rows="'+(b.tipo === 'titulo' ? 1 : 3)+'" '
+        + 'oninput="mudarBloco('+i+',\'texto\',this.value)" '
+        + 'style="width:100%">'+esc(b.texto || '')+'</textarea>';
+
+    } else if(b.tipo === 'lista'){
+      corpo = '<textarea rows="4" oninput="mudarBloco('+i+',\'texto\',this.value)" '
+        + 'style="width:100%" placeholder="Um item por linha">'
+        + esc(b.texto || '')+'</textarea>';
+
+    } else if(b.tipo === 'botao'){
+      corpo = '<input value="'+esc(b.texto || '')+'" placeholder="Texto do botão" '
+        + 'oninput="mudarBloco('+i+',\'texto\',this.value)" style="margin-bottom:6px">'
+        + '<input value="'+esc(b.url || '')+'" placeholder="https://..." '
+        + 'oninput="mudarBloco('+i+',\'url\',this.value)" '
+        + 'style="font-family:var(--mono);font-size:12px">';
+
+    } else if(b.tipo === 'imagem'){
+      corpo = '<div class="solta-img" id="solta-'+i+'" '
+        + 'ondragover="event.preventDefault();this.classList.add(\'on\')" '
+        + 'ondragleave="this.classList.remove(\'on\')" '
+        + 'ondrop="soltarImagem(event,'+i+')" '
+        + 'onclick="document.getElementById(\'arq-'+i+'\').click()">'
+        + (b.url
+            ? '<img src="'+esc(b.url)+'" alt="" class="previa-img">'
+            : '<div class="solta-txt">📎 Arraste a imagem aqui<br>'
+              + '<span>ou clique para escolher</span></div>')
+        + '</div>'
+        + '<input type="file" id="arq-'+i+'" accept="image/*" style="display:none" '
+        + 'onchange="enviarImagem(this.files[0],'+i+')">'
+        + '<div id="prog-'+i+'" style="font-size:12px;margin:6px 0"></div>'
+        + '<input value="'+esc(b.url || '')+'" placeholder="ou cole a URL da imagem" '
+        + 'oninput="mudarBloco('+i+',\'url\',this.value);desenharBlocos()" '
+        + 'style="font-family:var(--mono);font-size:12px;margin-bottom:6px">'
+        + '<input value="'+esc(b.alt || '')+'" placeholder="Descrição (aparece se a imagem não carregar)" '
+        + 'oninput="mudarBloco('+i+',\'alt\',this.value)" style="margin-bottom:6px">'
+        + '<input value="'+esc(b.link || '')+'" placeholder="Link ao clicar (opcional)" '
+        + 'oninput="mudarBloco('+i+',\'link\',this.value)" '
+        + 'style="font-family:var(--mono);font-size:12px">';
+
+    } else if(b.tipo === 'espaco'){
+      corpo = '<input type="number" value="'+(b.altura || 24)+'" min="8" max="80" '
+        + 'oninput="mudarBloco('+i+',\'altura\',Number(this.value))" '
+        + 'style="width:90px"> <span style="font-size:12px;color:var(--texto-3)">pixels</span>';
+
+    } else if(b.tipo === 'divisor'){
+      corpo = '<div style="font-size:12px;color:var(--texto-3)">Uma linha separando as seções.</div>';
+    }
+
+    return '<div class="bloco-em">'
+      + '<div class="bloco-topo">'
+      + '<span class="bloco-tipo">'+esc(nomes[b.tipo] || b.tipo)+'</span>'
+      + '<button class="bloco-acao" onclick="moverBloco('+i+',-1)" title="Subir">↑</button>'
+      + '<button class="bloco-acao" onclick="moverBloco('+i+',1)" title="Descer">↓</button>'
+      + '<button class="bloco-acao" onclick="removerBloco('+i+')" title="Remover">✕</button>'
+      + '</div>'+corpo+'</div>';
+  }).join('') || '<div class="vazio">Nenhum bloco ainda. Use os botões abaixo.</div>';
+
+  desenharPreview();
+}
+
+/** Escapa para HTML, mas preserva as variáveis {{...}} intactas. */
+function escEmail(txt){
+  return String(txt || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function montarHtmlEmail(){
+  var tema = TEMAS_EMAIL.filter(function(t){ return t.id === temaEmail; })[0]
+             || TEMAS_EMAIL[0];
+  var largura = Number((document.getElementById('em-largura') || {}).value) || 600;
+  var rodape = (document.getElementById('em-rodape') || {}).value || '';
+
+  var fonte = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+  var corpo = blocosEmail.map(function(b){
+    if(b.tipo === 'titulo'){
+      return '<tr><td style="padding:0 32px 14px 32px;font-family:'+fonte
+        + ';font-size:25px;line-height:1.3;font-weight:700;color:'+tema.texto+'">'
+        + escEmail(b.texto)+'</td></tr>';
+    }
+
+    if(b.tipo === 'texto'){
+      // cada linha em branco vira um parágrafo: quebra de linha simples
+      // não é respeitada por todos os clientes
+      return String(b.texto || '').split(/\n{2,}/).map(function(par){
+        return '<tr><td style="padding:0 32px 14px 32px;font-family:'+fonte
+          + ';font-size:16px;line-height:1.65;color:'+tema.texto+'">'
+          + escEmail(par).replace(/\n/g, '<br>')+'</td></tr>';
+      }).join('');
+    }
+
+    if(b.tipo === 'destaque'){
+      return '<tr><td style="padding:0 32px 16px 32px">'
+        + '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">'
+        + '<tr><td style="background-color:'+tema.fundo+';border-left:3px solid '
+        + tema.destaque+';border-radius:6px;padding:14px 18px;font-family:'+fonte
+        + ';font-size:15px;line-height:1.6;color:'+tema.texto+'">'
+        + escEmail(b.texto).replace(/\n/g,'<br>')+'</td></tr></table></td></tr>';
+    }
+
+    if(b.tipo === 'lista'){
+      var itens = String(b.texto || '').split('\n')
+        .filter(function(l){ return l.trim(); })
+        .map(function(l){
+          // o marcador é uma célula própria: <ul> tem recuo diferente
+          // em cada cliente de e-mail
+          return '<tr><td valign="top" style="padding:0 8px 8px 0;font-family:'+fonte
+            + ';font-size:16px;line-height:1.6;color:'+tema.destaque+'">•</td>'
+            + '<td style="padding:0 0 8px 0;font-family:'+fonte
+            + ';font-size:16px;line-height:1.6;color:'+tema.texto+'">'
+            + escEmail(l.trim())+'</td></tr>';
+        }).join('');
+      return '<tr><td style="padding:0 32px 10px 32px">'
+        + '<table role="presentation" cellpadding="0" cellspacing="0" border="0">'
+        + itens+'</table></td></tr>';
+    }
+
+    if(b.tipo === 'botao'){
+      var url = String(b.url || '#').trim() || '#';
+      // a tabela com bgcolor é o que faz o botão aparecer no Outlook,
+      // que ignora border-radius e padding no <a>
+      return '<tr><td style="padding:6px 32px 22px 32px">'
+        + '<table role="presentation" cellpadding="0" cellspacing="0" border="0">'
+        + '<tr><td align="center" bgcolor="'+tema.destaque+'" style="border-radius:8px">'
+        + '<a href="'+escEmail(url)+'" target="_blank" '
+        + 'style="display:inline-block;padding:14px 30px;font-family:'+fonte
+        + ';font-size:16px;font-weight:700;color:'+tema.botaoTexto
+        + ';text-decoration:none;border-radius:8px">'
+        + escEmail(b.texto || 'Clique aqui')+'</a>'
+        + '</td></tr></table></td></tr>';
+    }
+
+    if(b.tipo === 'imagem'){
+      if(!b.url) return '';
+      var img = '<img src="'+escEmail(b.url)+'" alt="'+escEmail(b.alt || '')+'" '
+        + 'width="'+(largura - 64)+'" style="display:block;width:100%;max-width:'
+        + (largura - 64)+'px;height:auto;border:0;border-radius:8px" border="0">';
+      if(b.link){
+        img = '<a href="'+escEmail(b.link)+'" target="_blank">'+img+'</a>';
+      }
+      return '<tr><td style="padding:0 32px 18px 32px">'+img+'</td></tr>';
+    }
+
+    if(b.tipo === 'divisor'){
+      return '<tr><td style="padding:6px 32px 20px 32px">'
+        + '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">'
+        + '<tr><td style="border-top:1px solid '+tema.borda+';font-size:0;line-height:0">'
+        + '&nbsp;</td></tr></table></td></tr>';
+    }
+
+    if(b.tipo === 'espaco'){
+      return '<tr><td style="height:'+(b.altura || 24)+'px;font-size:0;line-height:0">'
+        + '&nbsp;</td></tr>';
+    }
+
+    return '';
+  }).join('\n');
+
+  return '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" '
++ '"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\n'
++ '<html xmlns="http://www.w3.org/1999/xhtml">\n<head>\n'
++ '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />\n'
++ '<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n'
++ '<title>&nbsp;</title>\n'
++ '<!--[if mso]><style>table,td{font-family:Arial,sans-serif !important}</style><![endif]-->\n'
++ '</head>\n'
++ '<body style="margin:0;padding:0;background-color:'+tema.fundo+';">\n'
++ '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" '
++ 'style="background-color:'+tema.fundo+'">\n'
++ '<tr><td align="center" style="padding:28px 12px">\n'
++ '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="'+largura+'" '
++ 'style="width:'+largura+'px;max-width:100%;background-color:'+tema.papel
++ ';border-radius:14px;overflow:hidden">\n'
++ '<tr><td style="height:32px;font-size:0;line-height:0">&nbsp;</td></tr>\n'
++ corpo + '\n'
++ '<tr><td style="height:14px;font-size:0;line-height:0">&nbsp;</td></tr>\n'
++ (rodape
+    ? '<tr><td style="padding:18px 32px 26px 32px;border-top:1px solid '+tema.borda
+      + ';font-family:'+fonte+';font-size:12.5px;line-height:1.6;color:'+tema.suave
+      + ';text-align:center">'+escEmail(rodape).replace(/\n/g,'<br>')+'</td></tr>\n'
+    : '<tr><td style="height:18px;font-size:0;line-height:0">&nbsp;</td></tr>\n')
++ '</table>\n</td></tr>\n</table>\n</body>\n</html>';
+}
+
+function desenharPreview(){
+  var frame = document.getElementById('preview-email');
+  if(!frame) return;
+  var doc = frame.contentDocument || frame.contentWindow.document;
+  doc.open();
+  doc.write(montarHtmlEmail());
+  doc.close();
+}
+
+function desenharTemasEmail(){
+  var alvo = document.getElementById('temas-email');
+  if(!alvo) return;
+
+  alvo.innerHTML = TEMAS_EMAIL.map(function(t){
+    return '<div class="tema-op'+(t.id === temaEmail ? ' on' : '')
+      + '" onclick="escolherTemaEmail(\''+t.id+'\')">'
+      + '<div class="tema-amostra" style="background:'+t.papel
+      + ';border:1px solid '+t.borda+'">'
+      + '<div style="height:8px;width:60%;margin:5px auto 0;border-radius:3px;background:'
+      + t.destaque+'"></div></div>'
+      + '<div class="tema-nome">'+esc(t.nome)+'</div></div>';
+  }).join('');
+}
+
+function escolherTemaEmail(id){
+  temaEmail = id;
+  desenharTemasEmail();
+  desenharPreview();
+}
+
+function desenharVarsEmail(){
+  var alvo = document.getElementById('vars-email');
+  if(!alvo) return;
+  alvo.innerHTML = VARS_SELLFLUX.map(function(v){
+    return '<span class="var-chip" onclick="copiarVar(\''+v.chave+'\')" '
+      + 'title="'+esc(v.rotulo)+'">{{'+esc(v.chave)+'}}</span>';
+  }).join('');
+}
+
+function copiarVar(chave){
+  var texto = '{{' + chave + '}}';
+  if(navigator.clipboard) navigator.clipboard.writeText(texto);
+  mostrarToast(texto + ' copiado');
+}
+
+function copiarVarNova(){
+  var campo = document.getElementById('em-var-nova');
+  var nome = (campo.value || '').trim().replace(/[{}]/g,'');
+  if(!nome){ mostrarToast('Escreva o nome da chave'); return; }
+  copiarVar(nome);
+}
+
+function copiarHtmlEmail(){
+  var html = montarHtmlEmail();
+  var b = document.getElementById('btn-copiar-email');
+
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(html).then(function(){
+      b.textContent = '✅ Copiado';
+      setTimeout(function(){ b.textContent = '📋 Copiar HTML'; }, 1800);
+    });
+  } else {
+    // navegador antigo ou página sem https
+    var ta = document.createElement('textarea');
+    ta.value = html;
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta);
+    b.textContent = '✅ Copiado';
+    setTimeout(function(){ b.textContent = '📋 Copiar HTML'; }, 1800);
+  }
+}
+
+function mostrarToast(msg){
+  var el = document.getElementById('toast-email');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'toast-email';
+    el.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);'
+      + 'background:var(--vidro-solido);border:1px solid var(--borda-forte);'
+      + 'border-radius:10px;padding:10px 18px;font-size:13px;z-index:9999;'
+      + 'box-shadow:var(--sombra);transition:opacity .25s';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(window.__toastEmail);
+  window.__toastEmail = setTimeout(function(){ el.style.opacity = '0'; }, 1600);
+}
+
+function carregarEmail(){
+  desenharTemasEmail();
+  desenharVarsEmail();
+  if(!blocosEmail.length) novoEmail();
+  else desenharBlocos();
 }
 
 // ================= FATURAMENTO DO NEGÓCIO =================
