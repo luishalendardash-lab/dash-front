@@ -644,6 +644,13 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
         <div id="alerta-grupo"></div>
 
         <div class="campo" style="margin-bottom:22px">
+          <label for="q-pagina">Página do quiz <span style="font-weight:400;color:var(--texto-3)">(opcional)</span></label>
+          <input id="q-pagina" placeholder="deixe vazio — a dash serve a página sozinha">
+          <div style="font-size:12px;color:var(--texto-3);margin:4px 0 16px;line-height:1.5">
+            Depois de preencher o formulário, o lead vai para uma página só do quiz.
+            A dash já serve essa página; preencha aqui só se quiser usar uma sua.
+          </div>
+
           <label for="q-grupo">Para onde o lead vai ao terminar</label>
           <input id="q-grupo" placeholder="https://... link do SendFlow ou do grupo">
           <div style="font-size:12px;color:var(--texto-3);margin-top:5px">
@@ -1771,6 +1778,8 @@ async function carregarQuiz(){
 
   var grupo = document.getElementById('q-grupo');
   if(grupo) grupo.value = d.grupo_url || '';
+  var pagina = document.getElementById('q-pagina');
+  if(pagina) pagina.value = d.pagina_quiz || '';
 
   var alertaGrupo = document.getElementById('alerta-grupo');
   if(alertaGrupo){
@@ -1986,6 +1995,7 @@ async function salvarQuiz(){
       body: JSON.stringify({
         perguntas: perguntas,
         grupo_url: v('q-grupo'),
+        pagina_quiz: v('q-pagina'),
         intro: { titulo: v('q-intro-titulo'), texto: v('q-intro-texto'), botao: v('q-intro-botao') }
       })
     });
