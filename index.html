@@ -2418,9 +2418,20 @@ async function aplicarCopiaQuiz(indice){
 function montarEmbed(){
   var campo = document.getElementById('embed-codigo');
   if(!campo) return;
+
+  // Os atributos dizem aos otimizadores de cache para não atrasar este
+  // script. Sem eles, o WP Rocket segura a execução até a primeira
+  // interação — e o formulário só aparece depois do primeiro scroll,
+  // que é quando boa parte das pessoas já saiu.
+  //
+  //   data-no-optimize / data-no-defer  → WP Rocket, LiteSpeed
+  //   data-cfasync                      → Cloudflare Rocket Loader
+  //   data-nowprocket                   → WP Rocket, delay de JS
   campo.value =
     '<div id="pd-captura"></div>\n'
-    + '<script src="' + API + '/embed.js?l=' + encodeURIComponent(lancamentoAtual) + '"><\/script>';
+    + '<script src="' + API + '/embed.js?l=' + encodeURIComponent(lancamentoAtual) + '"\n'
+    + '        data-no-optimize="1" data-no-defer="1" data-nowprocket\n'
+    + '        data-cfasync="false"><\/script>';
 }
 
 function copiarEmbed(){
@@ -6832,9 +6843,20 @@ function fecharNovo(){
 function montarEmbed(){
   var campo = document.getElementById('embed-codigo');
   if(!campo) return;
+
+  // Os atributos dizem aos otimizadores de cache para não atrasar este
+  // script. Sem eles, o WP Rocket segura a execução até a primeira
+  // interação — e o formulário só aparece depois do primeiro scroll,
+  // que é quando boa parte das pessoas já saiu.
+  //
+  //   data-no-optimize / data-no-defer  → WP Rocket, LiteSpeed
+  //   data-cfasync                      → Cloudflare Rocket Loader
+  //   data-nowprocket                   → WP Rocket, delay de JS
   campo.value =
     '<div id="pd-captura"></div>\n'
-    + '<script src="' + API + '/embed.js?l=' + encodeURIComponent(lancamentoAtual) + '"><\/script>';
+    + '<script src="' + API + '/embed.js?l=' + encodeURIComponent(lancamentoAtual) + '"\n'
+    + '        data-no-optimize="1" data-no-defer="1" data-nowprocket\n'
+    + '        data-cfasync="false"><\/script>';
 }
 
 function copiarEmbed(){
