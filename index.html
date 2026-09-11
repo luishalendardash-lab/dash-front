@@ -4846,7 +4846,7 @@ function soltarImagem(ev, i){
 
 
 // ================= REATIVAR LEADS =================
-var opcoesSeg = { perguntas: [], produtos: [] };
+var opcoesSeg = { opcoes: [], produtos: [] };
 
 /** As opções vêm dos dados: quiz que existe, produtos que venderam. */
 async function carregarOpcoesSeg(){
@@ -4871,23 +4871,42 @@ async function carregarOpcoesSeg(){
     return;
   }
 
-  var perguntas = opcoesSeg.perguntas || [];
+  var opcoes = (opcoesSeg.opcoes || []).filter(function(o){ return o.leads > 0; });
+  var semPerfil = Number(opcoesSeg.sem_perfil || 0);
+  var soMarcacao = Number(opcoesSeg.so_marcacao_engenheiro || 0);
 
-  if(!perguntas.length){
-    alvoQuiz.innerHTML = '<div class="vazio">Estes lançamentos não têm respostas de '
-      + 'quiz. Todos os leads entram na segmentação.</div>';
+  if(!opcoes.length){
+    alvoQuiz.innerHTML = '<div class="vazio">Nenhum perfil identificado nestes '
+      + 'lançamentos. Todos os leads entram na segmentação.</div>';
   } else {
-    // a primeira pergunta é a que qualifica; as outras ficam disponíveis
     alvoQuiz.innerHTML =
-      '<div class="campo" style="max-width:420px;margin-bottom:12px">'
-      + '<label for="reat-pergunta">Pergunta</label>'
-      + '<select id="reat-pergunta" onchange="desenharRespostas()">'
-      + perguntas.map(function(q, i){
-          return '<option value="'+i+'">'+esc(q.enunciado)+'</option>';
+      '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
+      + '<button class="mini" onclick="marcarRespostas(true)">Todas</button>'
+      + '<button class="mini" onclick="marcarRespostas(false)">Nenhuma</button>'
+      + '<span style="font-size:12px;color:var(--texto-3);align-self:center">'
+      + 'nenhuma marcada = todas entram</span></div>'
+
+      + opcoes.map(function(o){
+          return '<label class="lanc-op">'
+            + '<input type="checkbox" class="resp-quiz" value="'+esc(o.valor)+'" '
+            + 'onchange="this.closest(\'.lanc-op\').classList.toggle(\'on\',this.checked);'
+            + 'calcularReativacao()">'
+            + '<span style="flex:1"><b>'+esc(o.label)+'</b>'
+            + '<span style="display:block;font-size:12px;color:var(--texto-3)">'
+            + numero(o.leads)+' leads</span></span></label>';
         }).join('')
-      + '</select></div>'
-      + '<div id="respostas-quiz"></div>';
-    desenharRespostas();
+
+      // os importados por CSV só têm a marcação de engenheiro: quem não
+      // é engenheiro fica sem perfil, e some se a pessoa filtrar
+      + (semPerfil
+          ? '<div class="nota-tabela">'+numero(semPerfil)+' leads sem perfil '
+            + 'identificado — vieram de importação e não responderam o quiz pela '
+            + 'dash. Eles só entram se você não marcar nenhuma opção acima.</div>'
+          : '')
+      + (soMarcacao
+          ? '<div class="nota-tabela">'+numero(soMarcacao)+' foram identificados '
+            + 'pela marcação de engenheiro da importação, não por resposta de quiz.</div>'
+          : '');
   }
 
   var produtos = opcoesSeg.produtos || [];
@@ -4904,31 +4923,6 @@ async function carregarOpcoesSeg(){
         }).join('')
       : '<div class="vazio">Nenhuma venda registrada ainda.</div>';
   }
-}
-
-function desenharRespostas(){
-  var alvo = document.getElementById('respostas-quiz');
-  var sel = document.getElementById('reat-pergunta');
-  if(!alvo || !sel) return;
-
-  var q = (opcoesSeg.perguntas || [])[Number(sel.value) || 0];
-  if(!q){ alvo.innerHTML = ''; return; }
-
-  alvo.innerHTML =
-    '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
-    + '<button class="mini" onclick="marcarRespostas(true)">Todas</button>'
-    + '<button class="mini" onclick="marcarRespostas(false)">Nenhuma</button>'
-    + '<span style="font-size:12px;color:var(--texto-3);align-self:center">'
-    + 'nenhuma marcada = todas entram</span></div>'
-    + (q.respostas || []).map(function(r){
-        return '<label class="lanc-op">'
-          + '<input type="checkbox" class="resp-quiz" value="'+esc(r.valor)+'" '
-          + 'onchange="this.closest(\'.lanc-op\').classList.toggle(\'on\',this.checked);'
-          + 'calcularReativacao()">'
-          + '<span style="flex:1"><b>'+esc(r.label)+'</b>'
-          + '<span style="display:block;font-size:12px;color:var(--texto-3)">'
-          + numero(r.leads)+' leads</span></span></label>';
-      }).join('');
 }
 
 function marcarRespostas(valor){
@@ -5004,12 +4998,8 @@ function filtrosReativacao(){
     produtos.push(c.value);
   });
 
-  var sel = document.getElementById('reat-pergunta');
-  var q = (opcoesSeg.perguntas || [])[Number(sel && sel.value) || 0];
-
   return {
     lancamentos: slugs,
-    pergunta: q ? q.chave : '',
     respostas: respostas,
     excluir_produtos: produtos,
     excluir_lancamento_atual: !!(document.getElementById('reat-sem-atual') || {}).checked,
