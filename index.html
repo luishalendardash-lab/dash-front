@@ -845,21 +845,7 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
           </label>
         </div>
 
-        <div class="int-rotulo" style="margin-top:22px">4. Para onde enviar</div>
-        <div class="campo" style="max-width:560px">
-          <label for="reat-endpoint">URL da automação no SellFlux</label>
-          <input id="reat-endpoint" placeholder="https://webhook.sellflux.app/v2/webhook/form_game/..."
-                 oninput="salvarEndpointReat()"
-                 style="font-family:var(--mono);font-size:12.5px">
-          <div style="font-size:12px;color:var(--texto-3);margin-top:4px;line-height:1.5">
-            Fica no script que o SellFlux gera para a automação — é a URL que aparece
-            no fim dele, depois de <code>form_game/</code>. Cada automação tem a sua:
-            usar a da captação jogaria estes leads no fluxo de lead novo do lançamento
-            em andamento.
-          </div>
-        </div>
-
-        <div class="int-rotulo" style="margin-top:22px">5. Nome da campanha</div>
+        <div class="int-rotulo" style="margin-top:22px">4. Nome da campanha</div>
         <div class="campo" style="max-width:420px">
           <input id="reat-campanha" placeholder="reativacao-set-26"
                  oninput="calcularReativacao()"
@@ -4991,19 +4977,8 @@ async function carregarReativar(){
           + '</span></span></label>';
       }).join('');
 
-  // o endereço da automação costuma ser o mesmo em toda reativação
-  var guardado = (sessao && sessao.endpointReat) || '';
-  var campo = document.getElementById('reat-endpoint');
-  if(campo && guardado) campo.value = guardado;
-
   carregarOpcoesSeg();
   carregarHistoricoReat();
-  calcularReativacao();
-}
-
-function salvarEndpointReat(){
-  var campo = document.getElementById('reat-endpoint');
-  if(campo && sessao) sessao.endpointReat = campo.value.trim();
   calcularReativacao();
 }
 
@@ -5038,8 +5013,7 @@ function filtrosReativacao(){
     respostas: respostas,
     excluir_produtos: produtos,
     excluir_lancamento_atual: !!(document.getElementById('reat-sem-atual') || {}).checked,
-    campanha: ((document.getElementById('reat-campanha') || {}).value || '').trim(),
-    endpoint: ((document.getElementById('reat-endpoint') || {}).value || '').trim()
+    campanha: ((document.getElementById('reat-campanha') || {}).value || '').trim()
   };
 }
 
@@ -5129,13 +5103,11 @@ async function previaReativacao(){
 
     + '<div style="display:flex;gap:10px;margin-top:16px;align-items:center;flex-wrap:wrap">'
     + '<button class="btn principal" onclick="dispararReativacao()" id="btn-reat"'
-    + (total && f.campanha && f.endpoint ? '' : ' disabled')+'>'
+    + (total && f.campanha ? '' : ' disabled')+'>'
     + '♻️ Enviar '+numero(total)+' para o SellFlux</button>'
-    + (!f.endpoint
-        ? '<span style="font-size:13px;color:var(--destaque)">Cole a URL da automação acima</span>'
-        : (!f.campanha
-            ? '<span style="font-size:13px;color:var(--destaque)">Dê um nome à campanha</span>'
-            : ''))
+    + (!f.campanha
+        ? '<span style="font-size:13px;color:var(--destaque)">Dê um nome à campanha</span>'
+        : '')
     + '</div>'
     + '<div id="prog-reat" style="margin-top:14px"></div>';
 }
@@ -5147,7 +5119,7 @@ async function previaReativacao(){
  */
 async function dispararReativacao(){
   var f = filtrosReativacao();
-  if(!f.campanha || !f.endpoint){ return; }
+  if(!f.campanha){ return; }
 
   var b = document.getElementById('btn-reat');
   var prog = document.getElementById('prog-reat');
