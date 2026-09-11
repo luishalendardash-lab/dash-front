@@ -205,10 +205,29 @@ tbody tr:hover{background:var(--fundo)}
 @media(max-width:1100px){.email-grade{grid-template-columns:1fr}}
 .email-editor{min-width:0}
 .email-lado{min-width:0;position:sticky;top:84px;align-self:start}
-#preview-email{
-  width:100%;height:520px;border:1px solid var(--borda);border-radius:12px;
-  background:#fff;display:block;
+/* A prévia mostra o e-mail no tamanho real e o encolhe para caber na
+   coluna. Espremer a largura mentiria: o e-mail tem largura fixa e
+   quebraria diferente do que quebra na caixa de entrada. */
+.prev-topo{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.prev-botoes{display:flex;gap:5px}
+.prev-palco{
+  border:1px solid var(--borda);border-radius:12px;overflow:hidden;
+  background:#8a8a8a;background-image:
+    linear-gradient(45deg,#7e7e7e 25%,transparent 25%),
+    linear-gradient(-45deg,#7e7e7e 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,#7e7e7e 75%),
+    linear-gradient(-45deg,transparent 75%,#7e7e7e 75%);
+  background-size:16px 16px;
+  background-position:0 0,0 8px,8px -8px,-8px 0;
+  display:flex;justify-content:center;padding:10px 0;
+  height:560px;
 }
+#preview-email{
+  border:0;background:#fff;display:block;
+  transform-origin:top center;
+  box-shadow:0 8px 28px rgba(0,0,0,.35);
+}
+.prev-nota{font-size:11.5px;color:var(--texto-3);margin-top:6px;text-align:center}
 .email-temas{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
 .tema-op{
   border:1.5px solid var(--borda);border-radius:10px;padding:8px;cursor:pointer;
@@ -745,6 +764,7 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn" onclick="novoEmail()">Começar do zero</button>
             <button class="btn" onclick="abrirModelosEmail()">📁 Modelos</button>
+            <button class="btn" onclick="salvarModeloEmail()">💾 Salvar como modelo</button>
             <button class="btn principal" onclick="copiarHtmlEmail()" id="btn-copiar-email">
               📋 Copiar HTML</button>
           </div>
@@ -787,8 +807,20 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
           </div>
 
           <div class="email-lado">
-            <div class="int-rotulo">Prévia</div>
-            <iframe id="preview-email" title="Prévia do e-mail"></iframe>
+            <div class="prev-topo">
+              <span class="int-rotulo" style="margin:0">Prévia</span>
+              <div class="prev-botoes">
+                <button class="mini on" id="prev-desk"
+                        onclick="modoPreview('desktop')">🖥️ Computador</button>
+                <button class="mini" id="prev-mob"
+                        onclick="modoPreview('mobile')">📱 Celular</button>
+                <button class="mini" onclick="abrirPreviewCheio()"
+                        title="Abrir em tamanho real">⤢</button>
+              </div>
+            </div>
+            <div class="prev-palco"><iframe id="preview-email"
+                 title="Prévia do e-mail"></iframe></div>
+            <div class="prev-nota" id="prev-escala"></div>
 
             <div class="int-rotulo" style="margin-top:18px">Variáveis do SellFlux</div>
             <div style="font-size:12px;color:var(--texto-3);margin-bottom:8px;line-height:1.5">
@@ -941,6 +973,26 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
 
      <!-- ============ INTEGRAÇÕES ============ -->
      <div class="tela" id="tela-integracoes">
+      <section class="painel">
+        <div class="painel-topo">
+          <div class="painel-titulo"><span class="emoji">🎯</span> Eventos para o Meta</div>
+          <button class="btn principal" onclick="salvarEventosMeta()" id="btn-ev-meta">
+            Salvar</button>
+        </div>
+        <div style="font-size:13px;color:var(--texto-2);margin-bottom:16px;line-height:1.6">
+          Manda um evento ao Meta quando o lead se qualifica no quiz — não quando
+          apenas preenche o formulário. O algoritmo passa a procurar quem se parece
+          com quem se qualificou, em vez de quem preenche formulário.
+          O pixel e o token ficam em <b>Meta — eventos de conversão</b>, na lista
+          de integrações abaixo.
+        </div>
+        <div id="lista-ev-meta"></div>
+        <button class="mini" style="margin-top:10px" onclick="addEventoMeta()">
+          + Adicionar evento</button>
+        <div id="res-ev-meta" style="margin-top:12px"></div>
+        <div id="hist-ev-meta"></div>
+      </section>
+
       <section class="painel">
         <div class="painel-topo">
           <div class="painel-titulo"><span class="emoji">🔗</span> Integrações</div>
@@ -1529,7 +1581,7 @@ function irPara(tela, el){
     carregarResultado(); carregarPagamentosPendentes(); carregarVendas();
   }
   if(tela === 'faturamento') carregarFaturamento();
-  if(tela === 'integracoes') carregarIntegracoes();
+  if(tela === 'integracoes'){ carregarIntegracoes(); carregarEventosMeta(); }
   if(tela === 'aulas') carregarAulas();
   if(tela === 'ajustes') carregarAjustes();
   if(tela === 'tutorial') carregarTutorial();
@@ -4751,13 +4803,96 @@ var MODELOS_EMAIL = [
   }
 ];
 
-function abrirModelosEmail(){
+
+/**
+ * Guarda o e-mail atual como modelo.
+ *
+ * Os modelos que vêm no código servem de ponto de partida, mas quem
+ * escreve os e-mails é quem usa a dash — e sem poder salvar os dele,
+ * todo lançamento recomeça do zero.
+ */
+async function salvarModeloEmail(){
+  if(!blocosEmail.length){
+    mostrarToast('Monte o e-mail antes de salvar');
+    return;
+  }
+
+  var nome = prompt('Nome do modelo:', '');
+  if(!nome || !nome.trim()) return;
+
+  try{
+    var r = await fetch(API + '/api/modelos-email', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify({
+        nome: nome.trim(),
+        tema: temaEmail,
+        largura: Number((document.getElementById('em-largura') || {}).value) || 600,
+        blocos: blocosEmail,
+        rodape: (document.getElementById('em-rodape') || {}).value || ''
+      })
+    });
+    var d = await r.json();
+
+    mostrarToast(d.ok
+      ? 'Modelo "' + d.nome + '" salvo'
+      : (d.erro || 'não deu para salvar'));
+  }catch(e){
+    mostrarToast(e.message);
+  }
+}
+
+async function apagarModeloEmail(nome){
+  if(!confirm('Apagar o modelo "' + nome + '"?')) return;
+
+  try{
+    var r = await fetch(API + '/api/modelos-email?apagar=1', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify({ nome: nome })
+    });
+    var d = await r.json();
+    if(d.ok){ mostrarToast('Modelo apagado'); abrirModelosEmail(); }
+    else mostrarToast(d.erro || 'falhou');
+  }catch(e){ mostrarToast(e.message); }
+}
+
+var modelosSalvos = [];
+
+async function abrirModelosEmail(){
+  document.getElementById('modal-int').innerHTML = '<div class="carregando">Carregando…</div>';
+  document.getElementById('cortina-int').classList.add('on');
+  document.getElementById('modal-int').classList.add('on');
+
+  try{
+    var d = await api('/api/modelos-email');
+    modelosSalvos = d.modelos || [];
+  }catch(e){ modelosSalvos = []; }
+
   document.getElementById('modal-int').innerHTML =
     '<h2 style="font-size:19px;font-weight:600;margin-bottom:4px">Modelos de e-mail</h2>'
     + '<p style="font-size:13px;color:var(--texto-2);margin-bottom:16px;line-height:1.55">'
-    + 'Cada um já vem escrito para um momento do lançamento. Escolha e edite o que quiser — '
-    + 'isto substitui o conteúdo atual.</p>'
-    + '<div style="display:flex;flex-direction:column;gap:8px;max-height:56vh;overflow-y:auto">'
+    + 'Escolher um substitui o conteúdo atual.</p>'
+
+    + (modelosSalvos.length
+        ? '<div class="int-rotulo">Seus modelos</div>'
+          + '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px">'
+          + modelosSalvos.map(function(m, i){
+              return '<div class="opcao-produto" style="cursor:default">'
+                + '<span style="flex:1;text-align:left;cursor:pointer" '
+                + 'onclick="usarModeloSalvo('+i+')">'
+                + '<span style="display:block;font-weight:500">'+esc(m.nome)+'</span>'
+                + '<span style="font-size:12px;color:var(--texto-3)">'
+                + numero(m.quantos)+' blocos · '+dataCurta(m.atualizado)+'</span></span>'
+                + '<button class="bloco-acao" onclick="apagarModeloEmail(\''
+                + esc(m.nome).replace(/'/g, "\\'")+'\')" title="Apagar">✕</button>'
+                + '</div>';
+            }).join('')
+          + '</div>'
+        : '')
+
+    + '<div class="int-rotulo">Prontos para usar</div>'
+    + '<div style="display:flex;flex-direction:column;gap:8px;max-height:40vh;overflow-y:auto">'
     + MODELOS_EMAIL.map(function(m, i){
         return '<button class="opcao-produto" onclick="usarModeloEmail('+i+')" '
           + 'style="cursor:pointer"><span style="flex:1;text-align:left">'
@@ -4767,9 +4902,25 @@ function abrirModelosEmail(){
       }).join('')
     + '</div>'
     + '<button class="btn" style="margin-top:14px" onclick="fecharIntegracao()">Fechar</button>';
+}
 
-  document.getElementById('cortina-int').classList.add('on');
-  document.getElementById('modal-int').classList.add('on');
+function usarModeloSalvo(i){
+  var m = modelosSalvos[i];
+  if(!m) return;
+
+  blocosEmail = JSON.parse(JSON.stringify(m.blocos || []));
+  temaEmail = m.tema || 'escuro';
+
+  var larg = document.getElementById('em-largura');
+  if(larg && m.largura) larg.value = String(m.largura);
+
+  var r = document.getElementById('em-rodape');
+  if(r) r.value = m.rodape || '';
+
+  desenharTemasEmail();
+  desenharBlocos();
+  fecharIntegracao();
+  mostrarToast('Modelo "' + m.nome + '" carregado');
 }
 
 function usarModeloEmail(i){
@@ -4855,6 +5006,191 @@ function soltarImagem(ev, i){
   if(arq) enviarImagem(arq, i);
 }
 
+
+
+// ================= EVENTOS PARA O META =================
+var eventosMeta = [];
+var opcoesQuizMeta = [];
+
+async function carregarEventosMeta(){
+  var alvo = document.getElementById('lista-ev-meta');
+  if(!alvo) return;
+
+  try{
+    var d = await api('/api/eventos-meta');
+    eventosMeta = d.eventos || [];
+    desenharHistEvMeta(d.historico || []);
+  }catch(e){ eventosMeta = []; }
+
+  // as opções do quiz, para escolher quais respostas disparam
+  try{
+    var r = await fetch(API + '/api/opcoes-segmentacao', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify({})
+    });
+    var o = await r.json();
+    opcoesQuizMeta = o.opcoes || [];
+  }catch(e){ opcoesQuizMeta = []; }
+
+  if(!eventosMeta.length){
+    // o caso mais comum já vem montado: engenheiro é o público principal
+    var eng = opcoesQuizMeta.filter(function(x){ return x.engenheiro; })
+                            .map(function(x){ return x.valor; });
+    eventosMeta = [{
+      nome_evento: 'QualifiedLead',
+      respostas: eng.length ? eng : [],
+      grupo: 'marketing',
+      valor: null,
+      ativo: true
+    }];
+  }
+
+  desenharEventosMeta();
+}
+
+function desenharEventosMeta(){
+  var alvo = document.getElementById('lista-ev-meta');
+  if(!alvo) return;
+
+  if(!opcoesQuizMeta.length){
+    alvo.innerHTML = '<div class="vazio">Nenhuma resposta de quiz encontrada. '
+      + 'Monte o quiz antes de configurar os eventos.</div>';
+    return;
+  }
+
+  alvo.innerHTML = eventosMeta.map(function(ev, i){
+    var marcadas = ev.respostas || [];
+    return '<div class="bloco-em">'
+      + '<div class="bloco-topo">'
+      + '<span class="bloco-tipo">Evento '+(i+1)+'</span>'
+      + '<button class="bloco-acao" onclick="removerEventoMeta('+i+')" '
+      + 'title="Remover">✕</button></div>'
+
+      + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">'
+      + '<div class="campo" style="margin:0;flex:1;min-width:180px">'
+      + '<label>Nome do evento no Meta</label>'
+      + '<input value="'+esc(ev.nome_evento || '')+'" list="eventos-sugeridos" '
+      + 'oninput="mudarEventoMeta('+i+',\'nome_evento\',this.value)" '
+      + 'placeholder="QualifiedLead" style="font-family:var(--mono);font-size:12.5px"></div>'
+      + '<div class="campo" style="margin:0;width:150px">'
+      + '<label>Etapa (opcional)</label>'
+      + '<select onchange="mudarEventoMeta('+i+',\'grupo\',this.value)">'
+      + ['', 'marketing', 'inside_sales', 'outside_sales'].map(function(g){
+          return '<option value="'+g+'"'+((ev.grupo||'') === g ? ' selected' : '')+'>'
+            + (g || '—')+'</option>';
+        }).join('')
+      + '</select></div>'
+      + '<div class="campo" style="margin:0;width:120px">'
+      + '<label>Valor (opcional)</label>'
+      + '<input type="number" step="0.01" value="'+(ev.valor != null ? ev.valor : '')+'" '
+      + 'oninput="mudarEventoMeta('+i+',\'valor\',this.value)" placeholder="0,00"></div>'
+      + '</div>'
+
+      + '<div style="font-size:12.5px;color:var(--texto-3);margin-bottom:8px">'
+      + 'Dispara quando a resposta for:</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:6px">'
+      + opcoesQuizMeta.map(function(o){
+          var on = marcadas.indexOf(o.valor) !== -1;
+          return '<button class="var-chip'+(on ? ' on' : '')+'" '
+            + 'onclick="alternarRespostaMeta('+i+',\''+esc(o.valor)+'\')" '
+            + 'style="font-family:var(--sans);'
+            + (on ? 'border-color:var(--destaque);color:var(--destaque)' : '')+'">'
+            + (on ? '✓ ' : '')+esc(o.label)+'</button>';
+        }).join('')
+      + '</div></div>';
+  }).join('')
+
+  + '<datalist id="eventos-sugeridos">'
+  + ['QualifiedLead','Lead','CompleteRegistration','Schedule','SubmitApplication',
+     'StartTrial','Contact']
+      .map(function(n){ return '<option value="'+n+'">'; }).join('')
+  + '</datalist>'
+
+  + '<div class="nota-tabela">'
+  + '<b>QualifiedLead</b> é o evento do Meta para lead qualificado — o nome '
+  + 'sugerido para quem se identifica como engenheiro. Ele é personalizado: '
+  + 'aparece sozinho no Gerenciador de Eventos assim que o primeiro for enviado, '
+  + 'e de lá você pode usá-lo como otimização da campanha. '
+  + 'A <b>etapa</b> é o parâmetro que o Meta espera junto, dizendo onde a '
+  + 'qualificação aconteceu.</div>';
+}
+
+function addEventoMeta(){
+  eventosMeta.push({ nome_evento:'', respostas:[], valor:null, ativo:true });
+  desenharEventosMeta();
+}
+
+function removerEventoMeta(i){
+  eventosMeta.splice(i,1);
+  desenharEventosMeta();
+}
+
+function mudarEventoMeta(i, campo, valor){
+  if(!eventosMeta[i]) return;
+  eventosMeta[i][campo] = campo === 'valor'
+    ? (valor === '' ? null : Number(valor))
+    : valor;
+}
+
+function alternarRespostaMeta(i, valor){
+  var ev = eventosMeta[i];
+  if(!ev) return;
+  ev.respostas = ev.respostas || [];
+  var pos = ev.respostas.indexOf(valor);
+  if(pos === -1) ev.respostas.push(valor); else ev.respostas.splice(pos,1);
+  desenharEventosMeta();
+}
+
+async function salvarEventosMeta(){
+  var b = document.getElementById('btn-ev-meta');
+  var res = document.getElementById('res-ev-meta');
+  b.disabled = true; b.textContent = 'Salvando…';
+
+  var validos = eventosMeta.filter(function(e){
+    return (e.nome_evento || '').trim() && (e.respostas || []).length;
+  });
+
+  try{
+    var r = await fetch(API + '/api/eventos-meta', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify({ eventos: validos })
+    });
+    var d = await r.json();
+
+    res.innerHTML = d.ok
+      ? '<div class="alerta-caixa">✅ '+numero(d.eventos)+' evento(s) salvos. '
+        + 'Se ainda não configurou o pixel, faça isso em '
+        + '<b>Meta — eventos de conversão</b>, na lista de integrações abaixo.</div>'
+      : '<div class="alerta-caixa perigo">'+esc(d.erro||'falhou')+'</div>';
+  }catch(e){
+    res.innerHTML = '<div class="alerta-caixa perigo">'+esc(e.message)+'</div>';
+  }
+
+  b.disabled = false; b.textContent = 'Salvar';
+}
+
+function desenharHistEvMeta(hist){
+  var alvo = document.getElementById('hist-ev-meta');
+  if(!alvo || !hist.length){ if(alvo) alvo.innerHTML = ''; return; }
+
+  alvo.innerHTML =
+    '<div class="int-rotulo" style="margin-top:20px">Já enviados</div>'
+    + '<div class="rolagem"><table><thead><tr>'
+    + '<th>Evento</th><th class="num-td">Enviados</th>'
+    + '<th class="num-td">Falhas</th><th class="num-td">Último</th>'
+    + '</tr></thead><tbody>'
+    + hist.map(function(h){
+        return '<tr><td style="font-family:var(--mono);font-size:12.5px">'
+          + esc(h.evento)+'</td>'
+          + '<td class="num-td">'+numero(h.enviados)+'</td>'
+          + '<td class="num-td"'+(h.falhas ? ' style="color:var(--negativo)"' : '')+'>'
+          + (h.falhas || '—')+'</td>'
+          + '<td class="num-td" style="font-size:12px">'+dataCurta(h.ultimo)+'</td></tr>';
+      }).join('')
+    + '</tbody></table></div>';
+}
 
 // ================= REATIVAR LEADS =================
 var opcoesSeg = { opcoes: [], produtos: [] };
@@ -5489,14 +5825,70 @@ function montarHtmlEmail(){
 + '</table>\n</td></tr>\n</table>\n</body>\n</html>';
 }
 
+
+var previewModo = 'desktop';
+
+function modoPreview(m){
+  previewModo = m;
+  var d = document.getElementById('prev-desk');
+  var c = document.getElementById('prev-mob');
+  if(d) d.classList.toggle('on', m === 'desktop');
+  if(c) c.classList.toggle('on', m === 'mobile');
+  desenharPreview();
+}
+
+/**
+ * Abre a prévia em tamanho real, numa aba.
+ *
+ * Para conferir antes de enviar: na coluna lateral o e-mail aparece
+ * reduzido, e detalhe pequeno — espaçamento, quebra de linha — some.
+ */
+function abrirPreviewCheio(){
+  var w = window.open('', '_blank');
+  if(!w){ mostrarToast('O navegador bloqueou a aba'); return; }
+  w.document.write(montarHtmlEmail());
+  w.document.close();
+}
+
 function desenharPreview(){
   var frame = document.getElementById('preview-email');
-  if(!frame) return;
+  var palco = frame && frame.parentElement;
+  if(!frame || !palco) return;
+
+  var larguraEmail = Number((document.getElementById('em-largura') || {}).value) || 600;
+
+  // No celular o e-mail é exibido em ~380px, e é assim que a maioria
+  // vai ler. Vale conferir os dois: botão largo demais e texto que
+  // quebra feio só aparecem nessa largura.
+  var larguraPalco = previewModo === 'mobile' ? 390 : larguraEmail;
+
+  frame.style.width = larguraPalco + 'px';
+
+  // encolhe para caber na coluna, sem espremer o conteúdo
+  var disponivel = palco.clientWidth - 24;
+  var escala = Math.min(1, disponivel / larguraPalco);
+
+  frame.style.transform = escala < 1 ? 'scale(' + escala + ')' : 'none';
+  frame.style.height = Math.round((palco.clientHeight - 20) / escala) + 'px';
+
+  var nota = document.getElementById('prev-escala');
+  if(nota){
+    nota.textContent = previewModo === 'mobile'
+      ? 'Como aparece no celular · 390px'
+      : larguraEmail + 'px de largura'
+        + (escala < 1 ? ' · reduzido a ' + Math.round(escala * 100) + '% para caber' : '');
+  }
+
   var doc = frame.contentDocument || frame.contentWindow.document;
   doc.open();
   doc.write(montarHtmlEmail());
   doc.close();
 }
+
+// a escala depende da largura da coluna, que muda ao redimensionar
+window.addEventListener('resize', function(){
+  if(telaAtual === 'email') desenharPreview();
+});
 
 function desenharTemasEmail(){
   var alvo = document.getElementById('temas-email');
