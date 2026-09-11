@@ -219,6 +219,24 @@ tbody tr:hover{background:var(--fundo)}
 .tema-amostra{height:26px;border-radius:6px;margin-bottom:6px}
 .tema-nome{font-size:11px;color:var(--texto-2)}
 .email-add{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.reat-filtros{display:flex;flex-direction:column;gap:10px}
+.reat-op{
+  display:flex;gap:10px;align-items:flex-start;cursor:pointer;
+  border:1px solid var(--borda);border-radius:10px;padding:12px 14px;
+  background:var(--vidro-solido);transition:border-color .15s;
+}
+.reat-op:hover{border-color:var(--borda-forte)}
+.reat-op input{width:auto;margin:2px 0 0 0;flex-shrink:0}
+.reat-op span{font-size:13.5px;line-height:1.5}
+.reat-op em{display:block;font-style:normal;font-size:12px;color:var(--texto-3);margin-top:2px}
+.lanc-op{
+  display:flex;gap:10px;align-items:center;cursor:pointer;
+  border:1px solid var(--borda);border-radius:10px;padding:11px 14px;
+  background:var(--vidro-solido);margin-bottom:7px;transition:border-color .15s;
+}
+.lanc-op:hover{border-color:var(--borda-forte)}
+.lanc-op.on{border-color:var(--destaque)}
+.lanc-op input{width:auto;margin:0;flex-shrink:0}
 .solta-img{
   border:1.5px dashed var(--borda-forte);border-radius:10px;padding:16px;
   text-align:center;cursor:pointer;margin-bottom:8px;transition:border-color .15s,background .15s;
@@ -794,6 +812,75 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
       </section>
      </div>
 
+     <div class="tela" id="tela-reativar">
+      <section class="painel">
+        <div class="painel-topo">
+          <div class="painel-titulo"><span class="emoji">♻️</span> Reativar leads</div>
+        </div>
+
+        <div style="font-size:13px;color:var(--texto-2);margin-bottom:18px;line-height:1.6">
+          Manda leads de lançamentos anteriores para uma automação do SellFlux.
+          Eles entram lá com a tag da campanha — é por ela que a automação dispara.
+        </div>
+
+        <div class="int-rotulo">1. De quais lançamentos</div>
+        <div id="lista-lanc-reat"><div class="carregando">Carregando…</div></div>
+
+        <div class="int-rotulo" style="margin-top:22px">2. Perfil no quiz</div>
+        <div id="filtro-quiz"><div class="carregando">Carregando…</div></div>
+
+        <div class="int-rotulo" style="margin-top:22px">3. Excluir quem já comprou</div>
+        <div style="font-size:12.5px;color:var(--texto-3);margin-bottom:10px;line-height:1.55">
+          Marque os produtos que tiram a pessoa da lista. Quem comprou outra coisa
+          continua recebendo — só não faz sentido oferecer o que a pessoa já tem.
+        </div>
+        <div id="filtro-produtos"></div>
+
+        <div class="reat-filtros" style="margin-top:14px">
+          <label class="reat-op">
+            <input type="checkbox" id="reat-sem-atual" checked
+                   onchange="calcularReativacao()">
+            <span><b>Excluir quem já está no lançamento atual</b>
+              <em>evita a mesma pessoa receber duas mensagens seguidas</em></span>
+          </label>
+        </div>
+
+        <div class="int-rotulo" style="margin-top:22px">4. Para onde enviar</div>
+        <div class="campo" style="max-width:560px">
+          <label for="reat-endpoint">URL da automação no SellFlux</label>
+          <input id="reat-endpoint" placeholder="https://webhook.sellflux.app/v2/webhook/form_game/..."
+                 oninput="salvarEndpointReat()"
+                 style="font-family:var(--mono);font-size:12.5px">
+          <div style="font-size:12px;color:var(--texto-3);margin-top:4px;line-height:1.5">
+            Fica no script que o SellFlux gera para a automação — é a URL que aparece
+            no fim dele, depois de <code>form_game/</code>. Cada automação tem a sua:
+            usar a da captação jogaria estes leads no fluxo de lead novo do lançamento
+            em andamento.
+          </div>
+        </div>
+
+        <div class="int-rotulo" style="margin-top:22px">5. Nome da campanha</div>
+        <div class="campo" style="max-width:420px">
+          <input id="reat-campanha" placeholder="reativacao-set-26"
+                 oninput="calcularReativacao()"
+                 style="font-family:var(--mono);font-size:13px">
+          <div style="font-size:12px;color:var(--texto-3);margin-top:4px;line-height:1.5">
+            Vai como tag junto com o lead, e serve de controle: quem já recebeu esta
+            campanha não entra de novo, mesmo que você clique duas vezes.
+          </div>
+        </div>
+
+        <div id="previa-reat" style="margin-top:22px"></div>
+      </section>
+
+      <section class="painel" id="painel-hist-reat" style="display:none">
+        <div class="painel-topo">
+          <div class="painel-titulo"><span class="emoji">📊</span> Campanhas anteriores</div>
+        </div>
+        <div id="hist-reat"></div>
+      </section>
+     </div>
+
      <div class="tela" id="tela-tutorial">
       <section class="painel">
         <div class="painel-topo">
@@ -1004,6 +1091,7 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
       <div class="nav-titulo">Ferramentas</div>
       <button class="nav-item" onclick="irPara('quiz',this)"><span class="ico">🧩</span> Quiz</button>
       <button class="nav-item" onclick="irPara('email',this)"><span class="ico">✉️</span> Gerador de e-mail</button>
+      <button class="nav-item" onclick="irPara('reativar',this)"><span class="ico">♻️</span> Reativar leads</button>
       <button class="nav-item" onclick="irPara('integracoes',this)"><span class="ico">🔗</span> Integrações</button>
       <button class="nav-item" onclick="irPara('ajustes',this)"><span class="ico">⚙️</span> Ajustes</button>
       <button class="nav-item" onclick="irPara('tutorial',this)"><span class="ico">📖</span> Tutorial de uso</button>
@@ -1450,6 +1538,7 @@ function irPara(tela, el){
   if(tela === 'anuncios'){ carregarAnuncios(); carregarGastoMeta(); }
   if(tela === 'quiz') carregarQuiz();
   if(tela === 'email') carregarEmail();
+  if(tela === 'reativar') carregarReativar();
   if(tela === 'vendas'){
     carregarResultado(); carregarPagamentosPendentes(); carregarVendas();
   }
@@ -4767,6 +4856,384 @@ function soltarImagem(ev, i){
   ev.currentTarget.classList.remove('on');
   var arq = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
   if(arq) enviarImagem(arq, i);
+}
+
+
+// ================= REATIVAR LEADS =================
+var opcoesSeg = { perguntas: [], produtos: [] };
+
+/** As opções vêm dos dados: quiz que existe, produtos que venderam. */
+async function carregarOpcoesSeg(){
+  var slugs = [];
+  document.querySelectorAll('.lanc-reat:checked').forEach(function(c){
+    slugs.push(c.value);
+  });
+
+  var alvoQuiz = document.getElementById('filtro-quiz');
+  var alvoProd = document.getElementById('filtro-produtos');
+  if(!alvoQuiz) return;
+
+  try{
+    var r = await fetch(API + '/api/opcoes-segmentacao', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify({ lancamentos: slugs })
+    });
+    opcoesSeg = await r.json();
+  }catch(e){
+    alvoQuiz.innerHTML = '<div class="vazio">'+esc(e.message)+'</div>';
+    return;
+  }
+
+  var perguntas = opcoesSeg.perguntas || [];
+
+  if(!perguntas.length){
+    alvoQuiz.innerHTML = '<div class="vazio">Estes lançamentos não têm respostas de '
+      + 'quiz. Todos os leads entram na segmentação.</div>';
+  } else {
+    // a primeira pergunta é a que qualifica; as outras ficam disponíveis
+    alvoQuiz.innerHTML =
+      '<div class="campo" style="max-width:420px;margin-bottom:12px">'
+      + '<label for="reat-pergunta">Pergunta</label>'
+      + '<select id="reat-pergunta" onchange="desenharRespostas()">'
+      + perguntas.map(function(q, i){
+          return '<option value="'+i+'">'+esc(q.enunciado)+'</option>';
+        }).join('')
+      + '</select></div>'
+      + '<div id="respostas-quiz"></div>';
+    desenharRespostas();
+  }
+
+  var produtos = opcoesSeg.produtos || [];
+  if(alvoProd){
+    alvoProd.innerHTML = produtos.length
+      ? produtos.map(function(p, i){
+          return '<label class="lanc-op">'
+            + '<input type="checkbox" class="prod-excluir" value="'+esc(p.produto)+'" '
+            + 'onchange="this.closest(\'.lanc-op\').classList.toggle(\'on\',this.checked);'
+            + 'calcularReativacao()">'
+            + '<span style="flex:1"><b>'+esc(p.produto)+'</b>'
+            + '<span style="display:block;font-size:12px;color:var(--texto-3)">'
+            + numero(p.compradores)+' compradores</span></span></label>';
+        }).join('')
+      : '<div class="vazio">Nenhuma venda registrada ainda.</div>';
+  }
+}
+
+function desenharRespostas(){
+  var alvo = document.getElementById('respostas-quiz');
+  var sel = document.getElementById('reat-pergunta');
+  if(!alvo || !sel) return;
+
+  var q = (opcoesSeg.perguntas || [])[Number(sel.value) || 0];
+  if(!q){ alvo.innerHTML = ''; return; }
+
+  alvo.innerHTML =
+    '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
+    + '<button class="mini" onclick="marcarRespostas(true)">Todas</button>'
+    + '<button class="mini" onclick="marcarRespostas(false)">Nenhuma</button>'
+    + '<span style="font-size:12px;color:var(--texto-3);align-self:center">'
+    + 'nenhuma marcada = todas entram</span></div>'
+    + (q.respostas || []).map(function(r){
+        return '<label class="lanc-op">'
+          + '<input type="checkbox" class="resp-quiz" value="'+esc(r.valor)+'" '
+          + 'onchange="this.closest(\'.lanc-op\').classList.toggle(\'on\',this.checked);'
+          + 'calcularReativacao()">'
+          + '<span style="flex:1"><b>'+esc(r.label)+'</b>'
+          + '<span style="display:block;font-size:12px;color:var(--texto-3)">'
+          + numero(r.leads)+' leads</span></span></label>';
+      }).join('');
+}
+
+function marcarRespostas(valor){
+  document.querySelectorAll('.resp-quiz').forEach(function(c){
+    c.checked = valor;
+    c.closest('.lanc-op').classList.toggle('on', valor);
+  });
+  calcularReativacao();
+}
+
+
+var lancsReat = [];
+var reativando = false;
+
+async function carregarReativar(){
+  var alvo = document.getElementById('lista-lanc-reat');
+  if(!alvo) return;
+
+  try{
+    var d = await api('/api/lancamentos-com-leads');
+    lancsReat = d.lancamentos || [];
+  }catch(e){
+    alvo.innerHTML = '<div class="vazio">⚠️ '+esc(e.message)+'</div>';
+    return;
+  }
+
+  if(!lancsReat.length){
+    alvo.innerHTML = '<div class="vazio">Nenhum lançamento com leads ainda.</div>';
+    return;
+  }
+
+  alvo.innerHTML =
+    '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
+    + '<button class="mini" onclick="marcarLancsReat(true)">Todos</button>'
+    + '<button class="mini" onclick="marcarLancsReat(false)">Nenhum</button>'
+    + '</div>'
+    + lancsReat.map(function(l, i){
+        return '<label class="lanc-op" id="lanc-op-'+i+'">'
+          + '<input type="checkbox" class="lanc-reat" value="'+esc(l.slug)+'" '
+          + 'onchange="this.closest(\'.lanc-op\').classList.toggle(\'on\',this.checked);'
+          + 'carregarOpcoesSeg();calcularReativacao()">'
+          + '<span style="flex:1"><b>'+esc(l.nome)+'</b>'
+          + '<span style="display:block;font-size:12px;color:var(--texto-3)">'
+          + numero(l.leads)+' leads · '+numero(l.engenheiros)+' engenheiros · '
+          + numero(l.compradores)+' compraram · '+dataCurta(l.quando)
+          + '</span></span></label>';
+      }).join('');
+
+  // o endereço da automação costuma ser o mesmo em toda reativação
+  var guardado = (sessao && sessao.endpointReat) || '';
+  var campo = document.getElementById('reat-endpoint');
+  if(campo && guardado) campo.value = guardado;
+
+  carregarOpcoesSeg();
+  carregarHistoricoReat();
+  calcularReativacao();
+}
+
+function salvarEndpointReat(){
+  var campo = document.getElementById('reat-endpoint');
+  if(campo && sessao) sessao.endpointReat = campo.value.trim();
+  calcularReativacao();
+}
+
+function marcarLancsReat(valor){
+  document.querySelectorAll('.lanc-reat').forEach(function(c){
+    c.checked = valor;
+    c.closest('.lanc-op').classList.toggle('on', valor);
+  });
+  // as respostas do quiz dependem dos lançamentos escolhidos
+  carregarOpcoesSeg();
+  calcularReativacao();
+}
+
+function filtrosReativacao(){
+  var slugs = [], respostas = [], produtos = [];
+  document.querySelectorAll('.lanc-reat:checked').forEach(function(c){
+    slugs.push(c.value);
+  });
+  document.querySelectorAll('.resp-quiz:checked').forEach(function(c){
+    respostas.push(c.value);
+  });
+  document.querySelectorAll('.prod-excluir:checked').forEach(function(c){
+    produtos.push(c.value);
+  });
+
+  var sel = document.getElementById('reat-pergunta');
+  var q = (opcoesSeg.perguntas || [])[Number(sel && sel.value) || 0];
+
+  return {
+    lancamentos: slugs,
+    pergunta: q ? q.chave : '',
+    respostas: respostas,
+    excluir_produtos: produtos,
+    excluir_lancamento_atual: !!(document.getElementById('reat-sem-atual') || {}).checked,
+    campanha: ((document.getElementById('reat-campanha') || {}).value || '').trim(),
+    endpoint: ((document.getElementById('reat-endpoint') || {}).value || '').trim()
+  };
+}
+
+/** A prévia roda a cada mudança: escolher sem ver quantos são é chute. */
+var timerPrevia = null;
+function calcularReativacao(){
+  clearTimeout(timerPrevia);
+  timerPrevia = setTimeout(previaReativacao, 350);
+}
+
+async function previaReativacao(){
+  var alvo = document.getElementById('previa-reat');
+  if(!alvo || reativando) return;
+
+  var f = filtrosReativacao();
+
+  if(!f.lancamentos.length){
+    alvo.innerHTML = '<div class="alerta-caixa">Escolha ao menos um lançamento acima.</div>';
+    return;
+  }
+
+  var d;
+  try{
+    var r = await fetch(API + '/api/previa-reativacao', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify(f)
+    });
+    d = await r.json();
+  }catch(e){
+    alvo.innerHTML = '<div class="alerta-caixa perigo">'+esc(e.message)+'</div>';
+    return;
+  }
+
+  if(!d.ok){
+    alvo.innerHTML = '<div class="alerta-caixa perigo">'+esc(d.erro||'falhou')+'</div>';
+    return;
+  }
+
+  var r2 = d.resumo || {};
+  var desc = d.descartados || {};
+  var total = Number(r2.total || 0);
+
+  alvo.innerHTML =
+    '<div class="metricas" style="margin-bottom:14px">'
+    + '<div class="metrica" style="border-color:var(--destaque)">'
+    + '<div class="rot">♻️ Vão receber</div>'
+    + '<div class="num" style="color:var(--destaque)">'+numero(total)+'</div>'
+    + '<div class="pe">leads</div></div>'
+    + '<div class="metrica"><div class="rot">⚡ Engenheiros</div>'
+    + '<div class="num">'+numero(r2.engenheiros)+'</div>'
+    + (total ? '<div class="pe">'+Math.round(100*r2.engenheiros/total)+'% do total</div>' : '')
+    + '</div>'
+    + '<div class="metrica"><div class="rot">📱 Com WhatsApp</div>'
+    + '<div class="num">'+numero(r2.com_telefone)+'</div></div>'
+    + '</div>'
+
+    + ((d.por_lancamento || []).length > 1
+        ? '<div class="rolagem" style="margin-bottom:12px"><table><thead><tr>'
+          + '<th>Lançamento</th><th class="num-td">Leads</th></tr></thead><tbody>'
+          + d.por_lancamento.map(function(x){
+              return '<tr><td>'+esc(x.lancamento)+'</td>'
+                + '<td class="num-td">'+numero(x.leads)+'</td></tr>';
+            }).join('')
+          + '</tbody></table></div>'
+        : '')
+
+    + ((d.por_resposta || []).length > 1
+        ? '<div class="rolagem" style="margin-bottom:12px"><table><thead><tr>'
+          + '<th>Resposta no quiz</th><th class="num-td">Leads</th></tr></thead><tbody>'
+          + d.por_resposta.map(function(x){
+              return '<tr><td>'+esc(x.resposta)+'</td>'
+                + '<td class="num-td">'+numero(x.leads)+'</td></tr>';
+            }).join('')
+          + '</tbody></table></div>'
+        : '')
+
+    + '<div class="nota-tabela">'
+    + (Number(desc.por_produto_comprado)
+        ? numero(desc.por_produto_comprado)+' ficaram de fora por já terem comprado '
+          + 'os produtos marcados. '
+        : '')
+    + (Number(desc.ja_receberam)
+        ? numero(desc.ja_receberam)+' já receberam esta campanha e não entram de novo. '
+        : '')
+    + 'Lead sem e-mail nunca entra.</div>'
+
+    + '<div style="display:flex;gap:10px;margin-top:16px;align-items:center;flex-wrap:wrap">'
+    + '<button class="btn principal" onclick="dispararReativacao()" id="btn-reat"'
+    + (total && f.campanha && f.endpoint ? '' : ' disabled')+'>'
+    + '♻️ Enviar '+numero(total)+' para o SellFlux</button>'
+    + (!f.endpoint
+        ? '<span style="font-size:13px;color:var(--destaque)">Cole a URL da automação acima</span>'
+        : (!f.campanha
+            ? '<span style="font-size:13px;color:var(--destaque)">Dê um nome à campanha</span>'
+            : ''))
+    + '</div>'
+    + '<div id="prog-reat" style="margin-top:14px"></div>';
+}
+
+/**
+ * O envio vai em lotes: uma base de milhares estoura o tempo do Worker
+ * numa requisição só. Cada lote registra quem foi antes de seguir, então
+ * fechar a aba no meio não repete ninguém.
+ */
+async function dispararReativacao(){
+  var f = filtrosReativacao();
+  if(!f.campanha || !f.endpoint){ return; }
+
+  var b = document.getElementById('btn-reat');
+  var prog = document.getElementById('prog-reat');
+  b.disabled = true;
+  reativando = true;
+
+  var enviados = 0, falhas = 0, voltas = 0;
+  var erro = null;
+
+  while(voltas < 200){
+    voltas++;
+    prog.innerHTML = '<div class="alerta-caixa">Enviando… '
+      + numero(enviados)+' até agora'
+      + (falhas ? ' · '+numero(falhas)+' falharam' : '')+'</div>';
+
+    var d;
+    try{
+      var r = await fetch(API + '/api/reativar', {
+        method:'POST',
+        headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+        body: JSON.stringify(Object.assign({}, f, { limite: 200 }))
+      });
+      d = await r.json();
+    }catch(e){
+      erro = e.message;
+      break;
+    }
+
+    if(!d.ok){ erro = d.erro || 'falhou'; break; }
+
+    enviados += Number(d.enviados || 0);
+    falhas += Number(d.falhas || 0);
+    if(d.primeiro_erro && !erro) erro = d.primeiro_erro;
+
+    if(d.acabou) break;
+  }
+
+  reativando = false;
+  b.disabled = false;
+
+  prog.innerHTML = '<div class="alerta-caixa'+(erro ? ' perigo' : '')+'">'
+    + (erro ? '⚠️ ' : '✅ ')
+    + numero(enviados)+' leads enviados para a campanha <b>'+esc(f.campanha)+'</b>'
+    + (falhas ? ' · '+numero(falhas)+' falharam' : '')
+    + (erro ? '<div style="margin-top:6px;font-size:12px">'+esc(erro)+'</div>' : '')
+    + '</div>';
+
+  carregarHistoricoReat();
+  previaReativacao();
+}
+
+async function carregarHistoricoReat(){
+  var painel = document.getElementById('painel-hist-reat');
+  var alvo = document.getElementById('hist-reat');
+  if(!alvo) return;
+
+  var d;
+  try{ d = await api('/api/historico-reativacao'); }
+  catch(e){ painel.style.display = 'none'; return; }
+
+  var cs = (d && d.campanhas) || [];
+  if(!cs.length){ painel.style.display = 'none'; return; }
+
+  painel.style.display = '';
+  alvo.innerHTML =
+    '<div class="rolagem"><table><thead><tr>'
+    + '<th>Campanha</th><th class="num-td">Enviados</th>'
+    + '<th class="num-td">Compraram depois</th><th class="num-td">Receita</th>'
+    + '<th class="num-td">Quando</th></tr></thead><tbody>'
+    + cs.map(function(c){
+        var taxa = c.enviados ? (100 * c.compraram_depois / c.enviados) : 0;
+        return '<tr><td style="font-family:var(--mono);font-size:12.5px">'
+          + esc(c.campanha)+'</td>'
+          + '<td class="num-td">'+numero(c.enviados)
+          + (c.falhas ? '<div class="sub">'+numero(c.falhas)+' falharam</div>' : '')
+          + '</td>'
+          + '<td class="num-td"'+(c.compraram_depois ? ' style="color:var(--positivo)"' : '')+'>'
+          + numero(c.compraram_depois)
+          + (c.compraram_depois ? '<div class="sub">'+taxa.toFixed(1).replace('.',',')+'%</div>' : '')
+          + '</td>'
+          + '<td class="num-td">'+(Number(c.receita) ? moeda(c.receita) : '—')+'</td>'
+          + '<td class="num-td" style="font-size:12px">'+dataCurta(c.ultimo)+'</td></tr>';
+      }).join('')
+    + '</tbody></table></div>'
+    + '<div class="nota-tabela">"Compraram depois" é quem fechou alguma compra após '
+    + 'receber a campanha. É o número que diz se a reativação vale o esforço.</div>';
 }
 
 // ================= GERADOR DE E-MAIL =================
