@@ -4676,9 +4676,7 @@ async function carregarGrupo(){
        // quem entrou com telefone diferente do que preencheu no form
        ['💬 No grupo', numero(d.no_grupo),
         (d.pct_no_grupo != null
-          ? String(d.pct_no_grupo).replace('.',',')+'% dos leads' : '')],
-       ['⚡ Engenheiros no grupo', numero(d.engenheiros_entraram),
-        'dos identificados']]
+          ? String(d.pct_no_grupo).replace('.',',')+'% dos leads' : '')]]
       .map(function(x, i){
         return '<div class="metrica"'
           + (i === 3 ? ' style="border-color:var(--positivo)"' : '')+'>'
