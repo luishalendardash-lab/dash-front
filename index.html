@@ -1546,15 +1546,12 @@ function pintarCaptura(c){
     {rot:'📥 Leads capturados', num:numero(c.leads)},
     {rot:'👷 Leads engenheiros', num:numero(c.engenheiros), pe:pctEng+'% do total', destaque:true},
 
-    // Quem está no grupo é quem vai ver a aula. A diferença entre
-    // capturado e dentro do grupo é onde o lançamento vaza, e por isso
-    // o número fica ao lado do total, não escondido em outra tela.
+    // Quem está no grupo é quem vai ver a aula. O número vem do
+    // SendFlow: é o total de gente no grupo, não só os que a dash
+    // consegue casar com um lead.
     {rot:'💬 No grupo', num:numero(c.no_grupo),
      pe:(c.pct_no_grupo!=null ? String(c.pct_no_grupo).replace('.',',')+'% dos leads' : ''),
      destaque:true},
-    {rot:'⚡ Engenheiros no grupo', num:numero(c.no_grupo_engenheiros),
-     pe:(c.engenheiros ? Math.round(100*c.no_grupo_engenheiros/c.engenheiros)
-         +'% dos engenheiros' : '')},
 
     {rot:'🎯 Custo por lead', num:c.cpl!=null?moeda2(c.cpl):'—'},
     {rot:'⚡ Custo por engenheiro', num:c.cpl_engenheiro!=null?moeda2(c.cpl_engenheiro):'—'},
@@ -1577,12 +1574,7 @@ function pintarCaptura(c){
 
   // muitos cliques sem confirmação costuma ser o aviso do SendFlow
   // falhando, não gente desistindo na porta do grupo
-  + (Number(c.clicou_sem_entrar) > Math.max(5, Number(c.no_grupo) * 0.3)
-      ? '<div class="alerta-caixa" style="margin-top:12px">'
-        + numero(c.clicou_sem_entrar)+' leads clicaram no link e não constam no grupo. '
-        + 'São muitos para ser só desistência — vale conferir o webhook do SendFlow '
-        + 'em Leads.</div>'
-      : '');
+;
 }
 
 document.getElementById('legenda').innerHTML = SERIES.map(function(s){
@@ -4680,9 +4672,13 @@ async function carregarGrupo(){
        ['🧩 Fizeram o quiz', numero(d.fizeram_quiz),
         d.leads ? Math.round(100*d.fizeram_quiz/d.leads)+'% dos leads' : ''],
        ['👆 Clicaram no link', numero(d.clicaram), 'registrado pela dash'],
-       ['✅ Entraram no grupo', numero(d.entraram),
-        (d.pct_entrou != null ? String(d.pct_entrou).replace('.',',')+'% dos leads' : '')],
-       ['⚡ Engenheiros no grupo', numero(d.engenheiros_entraram), '']]
+       // o total vem do SendFlow: conta todo mundo no grupo, mesmo
+       // quem entrou com telefone diferente do que preencheu no form
+       ['💬 No grupo', numero(d.no_grupo),
+        (d.pct_no_grupo != null
+          ? String(d.pct_no_grupo).replace('.',',')+'% dos leads' : '')],
+       ['⚡ Engenheiros no grupo', numero(d.engenheiros_entraram),
+        'dos identificados']]
       .map(function(x, i){
         return '<div class="metrica"'
           + (i === 3 ? ' style="border-color:var(--positivo)"' : '')+'>'
@@ -4708,6 +4704,14 @@ async function carregarGrupo(){
     + (Number(d.entrou_sem_clicar)
         ? '<div class="nota-tabela">'+numero(d.entrou_sem_clicar)+' entraram sem passar '
           + 'pelo link da dash — vieram por outro caminho.</div>'
+        : '')
+
+    + ((Number(d.no_grupo) - Number(d.identificados)) > 0
+        ? '<div class="nota-tabela">Dos '+numero(d.no_grupo)+' no grupo, '
+          + numero(d.identificados)+' a dash reconhece pelo telefone. Os outros '
+          + numero(Number(d.no_grupo) - Number(d.identificados))
+          + ' entraram com um número diferente do que preencheram no formulário — '
+          + 'entram na contagem, mas não na ficha individual.</div>'
         : '')
 
     + '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
