@@ -1492,8 +1492,20 @@ function pintarCaptura(c){
   var itens = [
     {rot:'📥 Leads capturados', num:numero(c.leads)},
     {rot:'👷 Leads engenheiros', num:numero(c.engenheiros), pe:pctEng+'% do total', destaque:true},
+
+    // Quem está no grupo é quem vai ver a aula. A diferença entre
+    // capturado e dentro do grupo é onde o lançamento vaza, e por isso
+    // o número fica ao lado do total, não escondido em outra tela.
+    {rot:'💬 No grupo', num:numero(c.no_grupo),
+     pe:(c.pct_no_grupo!=null ? String(c.pct_no_grupo).replace('.',',')+'% dos leads' : ''),
+     destaque:true},
+    {rot:'⚡ Engenheiros no grupo', num:numero(c.no_grupo_engenheiros),
+     pe:(c.engenheiros ? Math.round(100*c.no_grupo_engenheiros/c.engenheiros)
+         +'% dos engenheiros' : '')},
+
     {rot:'🎯 Custo por lead', num:c.cpl!=null?moeda2(c.cpl):'—'},
     {rot:'⚡ Custo por engenheiro', num:c.cpl_engenheiro!=null?moeda2(c.cpl_engenheiro):'—'},
+    {rot:'💬 Custo por lead no grupo', num:c.custo_no_grupo!=null?moeda2(c.custo_no_grupo):'—'},
     {rot:'💸 Total investido', num:moeda(c.investido),
      pe:c.orcamento?'de '+moeda(c.orcamento)+' previstos':''},
     {rot:'🏁 Meta de leads', num:c.meta_leads?numero(c.meta_leads):'—',
@@ -1508,7 +1520,16 @@ function pintarCaptura(c){
       (i.pe ? '<div class="pe">'+i.pe+'</div>' : '')+
       (i.barra!=null ? '<div class="progresso"><i style="width:'+i.barra+'%"></i></div>' : '')+
     '</div>';
-  }).join('');
+  }).join('')
+
+  // muitos cliques sem confirmação costuma ser o aviso do SendFlow
+  // falhando, não gente desistindo na porta do grupo
+  + (Number(c.clicou_sem_entrar) > Math.max(5, Number(c.no_grupo) * 0.3)
+      ? '<div class="alerta-caixa" style="margin-top:12px">'
+        + numero(c.clicou_sem_entrar)+' leads clicaram no link e não constam no grupo. '
+        + 'São muitos para ser só desistência — vale conferir o webhook do SendFlow '
+        + 'em Leads.</div>'
+      : '');
 }
 
 document.getElementById('legenda').innerHTML = SERIES.map(function(s){
