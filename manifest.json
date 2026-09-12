@@ -1,0 +1,75 @@
+{
+  "name": "Dashboard do Perito da Elétrica",
+  "short_name": "Perito Dash",
+  "description": "Acompanhe a captação, o investimento e as vendas do lançamento.",
+  "start_url": "/?app=1",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#08090C",
+  "theme_color": "#08090C",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "/icones/icone-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icones/icone-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icones/mascara-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icones/mascara-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Leads",
+      "url": "/?tela=leads",
+      "icons": [
+        {
+          "src": "/icones/icone-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Anúncios",
+      "url": "/?tela=anuncios",
+      "icons": [
+        {
+          "src": "/icones/icone-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Vendas",
+      "url": "/?tela=vendas",
+      "icons": [
+        {
+          "src": "/icones/icone-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
