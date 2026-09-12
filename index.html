@@ -987,8 +987,11 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
           de integrações abaixo.
         </div>
         <div id="lista-ev-meta"></div>
-        <button class="mini" style="margin-top:10px" onclick="addEventoMeta()">
-          + Adicionar evento</button>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="mini" onclick="addEventoMeta()">+ Adicionar evento</button>
+          <button class="mini" onclick="testarEventoMeta()" id="btn-testar-meta">
+            🧪 Disparar um agora</button>
+        </div>
         <div id="res-ev-meta" style="margin-top:12px"></div>
         <div id="hist-ev-meta"></div>
       </section>
@@ -5140,6 +5143,51 @@ function alternarRespostaMeta(i, valor){
   var pos = ev.respostas.indexOf(valor);
   if(pos === -1) ev.respostas.push(valor); else ev.respostas.splice(pos,1);
   desenharEventosMeta();
+}
+
+
+/**
+ * Dispara o evento sem esperar um lead real.
+ *
+ * Usa o último lead que respondeu o quiz e apaga o registro de envio
+ * antes — o registro existe para o mesmo lead não gerar duas
+ * conversões, e num teste é exatamente o que atrapalha.
+ */
+async function testarEventoMeta(){
+  var b = document.getElementById('btn-testar-meta');
+  var res = document.getElementById('res-ev-meta');
+  b.disabled = true; b.textContent = 'Disparando…';
+
+  try{
+    var r = await fetch(API + '/api/testar-evento-meta', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify({ forcar: true })
+    });
+    var d = await r.json();
+
+    if(d.ok && d.enviados){
+      res.innerHTML = '<div class="alerta-caixa">✅ '+numero(d.enviados)
+        + ' evento(s) enviados. Veja em <b>Gerenciador de Eventos → Testar '
+        + 'eventos</b> se o código de teste estiver preenchido, ou em '
+        + '<b>Visão geral</b> em alguns minutos.</div>';
+    } else if(d.ok && !d.enviados){
+      // nenhum evento saiu: quase sempre a resposta do lead não está
+      // entre as marcadas, e isso é o comportamento correto
+      res.innerHTML = '<div class="alerta-caixa">Nenhum evento saiu. '
+        + 'O último lead que respondeu o quiz não deu nenhuma das respostas '
+        + 'marcadas acima'
+        + (d.aviso ? ' · '+esc(d.aviso) : '')+'.</div>';
+    } else {
+      res.innerHTML = '<div class="alerta-caixa perigo">'+esc(d.erro||'falhou')+'</div>';
+    }
+
+    carregarEventosMeta();
+  }catch(e){
+    res.innerHTML = '<div class="alerta-caixa perigo">'+esc(e.message)+'</div>';
+  }
+
+  b.disabled = false; b.textContent = '🧪 Disparar um agora';
 }
 
 async function salvarEventosMeta(){
