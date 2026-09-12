@@ -245,6 +245,44 @@ tbody tr:hover{background:var(--fundo)}
 .tema-amostra{height:26px;border-radius:6px;margin-bottom:6px}
 .tema-nome{font-size:11px;color:var(--texto-2)}
 .email-add{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+/* A faixa aparece no topo, acima de tudo: quem abre no navegador e não
+   instala nunca recebe aviso — e aviso é o motivo do app existir. */
+#faixa-app:empty{display:none}
+.faixa-topo{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:12px 26px;font-size:13.5px;line-height:1.45;
+}
+.faixa-topo.instalar{
+  background:linear-gradient(90deg,#7A1220,#A81828);
+  color:#FFE9EC;border-bottom:1px solid #C41F33;
+}
+.faixa-topo.notificar{
+  background:linear-gradient(90deg,#1C2A16,#243A1C);
+  color:#E6F3DC;border-bottom:1px solid #3E6B2C;
+}
+.faixa-topo b{font-weight:600}
+.faixa-txt{flex:1;min-width:200px}
+.faixa-txt span{display:block;font-size:12px;opacity:.8;margin-top:2px}
+.faixa-btn{
+  background:#fff;color:#16181C;border:0;border-radius:9px;
+  padding:9px 18px;font-size:13.5px;font-weight:600;cursor:pointer;
+  font-family:inherit;white-space:nowrap;
+}
+.faixa-btn:hover{opacity:.9}
+.faixa-x{
+  background:none;border:0;color:inherit;opacity:.6;cursor:pointer;
+  font-size:17px;padding:2px 6px;line-height:1;
+}
+.faixa-x:hover{opacity:1}
+.passo-linha{
+  display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;
+}
+.passo-num{
+  width:26px;height:26px;border-radius:50%;background:var(--destaque);
+  color:#1A1409;font-weight:700;font-size:13px;display:flex;
+  align-items:center;justify-content:center;flex-shrink:0;
+}
+.passo-txt{font-size:13.5px;line-height:1.55;padding-top:3px}
 .reat-filtros{display:flex;flex-direction:column;gap:10px}
 .reat-op{
   display:flex;gap:10px;align-items:flex-start;cursor:pointer;
@@ -555,6 +593,8 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
       <button class="btn" onclick="sair()">Sair</button>
     </div>
   </header>
+
+  <div id="faixa-app"></div>
 
   <div class="corpo">
     <div>
@@ -1300,6 +1340,8 @@ async function renovar(){
 
 function sair(){
   sessao = null;
+  var fx = document.getElementById('faixa-app');
+  if(fx) fx.innerHTML = '';
   try{ localStorage.removeItem('dash_sessao'); }catch(e){}
   document.getElementById('app').classList.remove('on');
   document.getElementById('login').classList.add('on');
@@ -1340,6 +1382,10 @@ async function iniciar(){
   document.getElementById('login').classList.remove('on');
   document.getElementById('app').classList.add('on');
   aplicarTema(document.documentElement.getAttribute('data-tema'));
+
+  // a faixa do topo é decidida agora, antes de qualquer dado carregar:
+  // ela não depende de nada do servidor
+  desenharFaixaApp();
 
   var d;
   try{
@@ -5271,6 +5317,144 @@ function desenharHistEvMeta(hist){
 }
 
 
+
+// ================= FAIXA DE INSTALAÇÃO E AVISOS =================
+//
+// A faixa fica no topo porque quem abre no navegador e não instala
+// nunca recebe notificação — e a notificação é o motivo do app existir.
+// Escondida em Ajustes, ninguém acha.
+
+function estaInstalado(){
+  return window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+}
+
+function eIphone(){
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+async function desenharFaixaApp(){
+  var alvo = document.getElementById('faixa-app');
+  if(!alvo) return;
+  alvo.innerHTML = '';
+
+  var instalado = estaInstalado();
+
+  // ---- não instalado: faixa vermelha com o passo a passo
+  if(!instalado){
+    if(sessionStorage.getItem('faixa-instalar-fechada')) return;
+
+    alvo.innerHTML =
+      '<div class="faixa-topo instalar">'
+      + '<div class="faixa-txt"><b>Instale a dash no celular</b>'
+      + '<span>Abre direto da tela de início e recebe avisos da captação.</span></div>'
+      + '<button class="faixa-btn" onclick="abrirComoInstalar()">Instalar</button>'
+      + '<button class="faixa-x" onclick="fecharFaixa(\'instalar\')" '
+      + 'title="Fechar">✕</button></div>';
+    return;
+  }
+
+  // ---- instalado: falta ativar o aviso?
+  var suportado = ('serviceWorker' in navigator) && ('PushManager' in window)
+                  && ('Notification' in window);
+  if(!suportado) return;
+
+  // já autorizou neste aparelho?
+  var jaAtivo = false;
+  try{
+    var reg = await navigator.serviceWorker.ready;
+    var sub = await reg.pushManager.getSubscription();
+    jaAtivo = !!sub;
+  }catch(e){}
+
+  if(jaAtivo) return;
+  if(Notification.permission === 'denied') return;   // sem insistir
+  if(sessionStorage.getItem('faixa-aviso-fechada')) return;
+
+  alvo.innerHTML =
+    '<div class="faixa-topo notificar">'
+    + '<div class="faixa-txt"><b>Ativar avisos da captação</b>'
+    + '<span>Um resumo com leads, engenheiros e custo, de tempo em tempo.</span></div>'
+    + '<button class="faixa-btn" onclick="ativarPushDaFaixa()" id="btn-faixa-push">'
+    + 'Ativar</button>'
+    + '<button class="faixa-x" onclick="fecharFaixa(\'aviso\')" '
+    + 'title="Fechar">✕</button></div>';
+}
+
+function fecharFaixa(qual){
+  // volta na próxima sessão: fechar não é "nunca mais"
+  sessionStorage.setItem('faixa-' + qual + '-fechada', '1');
+  desenharFaixaApp();
+}
+
+async function ativarPushDaFaixa(){
+  var b = document.getElementById('btn-faixa-push');
+  if(b){ b.disabled = true; b.textContent = 'Ativando…'; }
+
+  await ativarPush();
+  desenharFaixaApp();
+
+  if(b){ b.disabled = false; b.textContent = 'Ativar'; }
+}
+
+/**
+ * O passo a passo de instalar.
+ *
+ * No Android o navegador faz sozinho quando pode; no iPhone não existe
+ * botão, e sem instruções a pessoa não descobre que precisa usar o
+ * menu Compartilhar.
+ */
+function abrirComoInstalar(){
+  // Android com instalação disponível: pede direto
+  if(podeInstalar){
+    instalarApp();
+    return;
+  }
+
+  var iphone = eIphone();
+
+  var passos = iphone
+    ? [
+        'Toque no botão <b>Compartilhar</b> — o quadrado com a seta para '
+          + 'cima, na barra de baixo do Safari.',
+        'Role a lista e toque em <b>Adicionar à Tela de Início</b>.',
+        'Confirme em <b>Adicionar</b>, no canto superior.',
+        'Feche o Safari e abra a dash <b>pelo ícone novo</b>. '
+          + 'É aí que o botão de ativar avisos aparece.'
+      ]
+    : [
+        'Toque no menu do navegador — os <b>três pontos</b> no canto.',
+        'Escolha <b>Instalar aplicativo</b> ou <b>Adicionar à tela inicial</b>.',
+        'Confirme a instalação.',
+        'Abra a dash <b>pelo ícone novo</b> para ativar os avisos.'
+      ];
+
+  document.getElementById('modal-int').innerHTML =
+    '<h2 style="font-size:19px;font-weight:600;margin-bottom:4px">'
+    + 'Instalar no ' + (iphone ? 'iPhone' : 'celular') + '</h2>'
+    + '<p style="font-size:13px;color:var(--texto-2);margin-bottom:18px;line-height:1.55">'
+    + 'Leva uns 20 segundos e só precisa ser feito uma vez.</p>'
+
+    + passos.map(function(p, i){
+        return '<div class="passo-linha">'
+          + '<div class="passo-num">'+(i+1)+'</div>'
+          + '<div class="passo-txt">'+p+'</div></div>';
+      }).join('')
+
+    + (iphone
+        ? '<div class="alerta-caixa" style="margin-top:6px">No iPhone os avisos '
+          + 'funcionam <b>só pelo app instalado</b>. Aberto no Safari, ele não '
+          + 'recebe notificação — é regra da Apple.</div>'
+        : '')
+
+    + '<button class="btn" style="margin-top:16px" onclick="fecharIntegracao()">'
+    + 'Entendi</button>';
+
+  document.getElementById('cortina-int').classList.add('on');
+  document.getElementById('modal-int').classList.add('on');
+}
+
 // ================= APP NO CELULAR E NOTIFICAÇÕES =================
 var podeInstalar = null;
 
@@ -5282,6 +5466,7 @@ registrarServiceWorker();
 window.addEventListener('beforeinstallprompt', function(e){
   e.preventDefault();
   podeInstalar = e;
+  desenharFaixaApp();
   if(telaAtual === 'ajustes') carregarApp();
 });
 
