@@ -301,6 +301,21 @@ tbody tr:hover{background:var(--fundo)}
 .lanc-op:hover{border-color:var(--borda-forte)}
 .lanc-op.on{border-color:var(--destaque)}
 .lanc-op input{width:auto;margin:0;flex-shrink:0}
+.abrir-ads{
+  width:20px;height:20px;border-radius:5px;flex-shrink:0;
+  background:var(--vidro);border:1px solid var(--borda-forte);
+  color:var(--texto-2);font-size:13px;line-height:1;cursor:pointer;
+  font-family:var(--mono);display:flex;align-items:center;justify-content:center;
+  padding:0;transition:all .15s;
+}
+.abrir-ads:hover{border-color:var(--destaque);color:var(--destaque)}
+.abrir-ads.on{background:var(--destaque);border-color:var(--destaque);color:#1A1409}
+.lin-conj td{
+  background:var(--vidro);font-size:12.5px;
+  border-top:0;padding-top:9px;padding-bottom:9px;
+}
+.lin-conj .nome-conj{padding-left:30px;color:var(--texto-2)}
+.lin-conj .nome-conj b{color:var(--texto);font-weight:500}
 .solta-img{
   border:1.5px dashed var(--borda-forte);border-radius:10px;padding:16px;
   text-align:center;cursor:pointer;margin-bottom:8px;transition:border-color .15s,background .15s;
@@ -1657,8 +1672,99 @@ function irPara(tela, el){
   if(tela === 'leads'){ carregarFunil(); carregarLeads(); carregarRecorrencia(); }
 }
 
+
+var conjuntosAbertos = {};
+
+/**
+ * Abre o criativo e mostra os conjuntos onde ele roda.
+ *
+ * O mesmo criativo rende diferente em cada público — a linha agrupada
+ * mostra a média, e a média esconde o conjunto que está caro.
+ */
+async function abrirConjuntos(chave){
+  var linha = document.getElementById('lin-' + chave);
+  var botao = document.getElementById('bt-' + chave);
+  if(!linha) return;
+
+  // já aberto: fecha
+  if(conjuntosAbertos[chave]){
+    var n = linha.nextElementSibling;
+    while(n && n.classList.contains('lin-conj')){
+      var seg = n.nextElementSibling;
+      n.remove();
+      n = seg;
+    }
+    conjuntosAbertos[chave] = false;
+    if(botao){ botao.textContent = '+'; botao.classList.remove('on'); }
+    return;
+  }
+
+  if(botao){ botao.textContent = '…'; }
+
+  var colunas = linha.children.length;
+  var d;
+  try{
+    var r = await fetch(API + '/api/anuncio-conjuntos', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify({ lancamento: lancamentoAtual, chave: chave })
+    });
+    d = await r.json();
+  }catch(e){
+    if(botao){ botao.textContent = '+'; }
+    mostrarToast(e.message);
+    return;
+  }
+
+  var lista = (d && d.conjuntos) || [];
+
+  if(!lista.length){
+    linha.insertAdjacentHTML('afterend',
+      '<tr class="lin-conj"><td colspan="'+colunas+'" class="nome-conj">'
+      + 'Sem conjunto identificado para este criativo.</td></tr>');
+  } else {
+    // de trás para frente, para a ordem ficar certa ao inserir
+    for(var i = lista.length - 1; i >= 0; i--){
+      var c = lista[i];
+      var resp = c.respostas || {};
+
+      linha.insertAdjacentHTML('afterend',
+        '<tr class="lin-conj">'
+        + '<td class="nome-conj"><b>'+esc(c.conjunto)+'</b>'
+        + (c.quantas_variacoes > 1
+            ? '<div class="sub">'+c.quantas_variacoes+' variações aqui</div>'
+            : '')
+        + '</td>'
+        + '<td class="num-td">'+numero(c.leads)+'</td>'
+        + colunasQuiz.map(function(col){
+            var n = Number(resp[col.valor] || 0);
+            return '<td class="num-td"'
+              + (col.engenheiro && n ? ' style="color:var(--destaque)"' : '')
+              + '>'+(n || '—')+'</td>';
+          }).join('')
+        + '<td class="num-td" style="color:var(--texto-3)">'
+        + (Number(resp['(sem resposta)']) || '—')+'</td>'
+        + '<td class="num-td">'+(Number(c.gasto) ? moeda(c.gasto) : '—')+'</td>'
+        + '<td class="num-td">'+(c.cpl != null ? moeda2(c.cpl) : '—')+'</td>'
+        + '<td class="num-td"'+(c.cpl_engenheiro != null && c.cpl_engenheiro < 100
+            ? ' style="color:var(--positivo)"' : '')+'>'
+        + (c.cpl_engenheiro != null ? moeda2(c.cpl_engenheiro) : '—')+'</td>'
+        + '<td class="num-td">'+(Number(c.compras) || '—')+'</td>'
+        + '<td class="num-td">'+(c.cpa != null ? moeda2(c.cpa) : '—')+'</td>'
+        + '<td class="num-td">'+(Number(c.receita) ? moeda(c.receita) : '—')+'</td>'
+        + '<td class="num-td"'+(c.roas >= 2 ? ' style="color:var(--positivo)"' : '')+'>'
+        + (c.roas != null ? String(c.roas).replace('.',',')+'x' : '—')+'</td>'
+        + '</tr>');
+    }
+  }
+
+  conjuntosAbertos[chave] = true;
+  if(botao){ botao.textContent = '−'; botao.classList.add('on'); }
+}
+
 // ================= ANÚNCIOS =================
 async function carregarAnuncios(){
+  conjuntosAbertos = {};
   var alvo = document.getElementById('lista-anuncios');
   alvo.innerHTML = '<div class="carregando">Carregando…</div>';
 
@@ -1769,10 +1875,21 @@ async function carregarAnuncios(){
     + ordenada.map(function(a){
         var semOrigem = a.anuncio === '(sem anuncio)';
         var resp = a.respostas || {};
-        return '<tr'+(semOrigem ? ' style="opacity:.55"' : '')+'>'
-          + '<td><div style="font-weight:500">'+esc(a.anuncio)+'</div>'
+        // O criativo agrupado esconde onde cada variação roda. Abrir
+        // mostra os conjuntos, que é onde a decisão de público acontece.
+        var podeAbrir = !semOrigem && a.chave;
+        return '<tr'+(semOrigem ? ' style="opacity:.55"' : '')
+          + (podeAbrir ? ' id="lin-'+esc(a.chave)+'"' : '')+'>'
+          + '<td><div style="display:flex;gap:8px;align-items:flex-start">'
+          + (podeAbrir
+              ? '<button class="abrir-ads" id="bt-'+esc(a.chave)+'" '
+                + 'onclick="abrirConjuntos(\''+esc(a.chave).replace(/'/g,"\\'")+'\')" '
+                + 'title="Ver os conjuntos">+</button>'
+              : '<span style="width:20px;flex-shrink:0"></span>')
+          + '<div><div style="font-weight:500">'+esc(a.anuncio)+'</div>'
           + (a.variacoes > 1
-              ? '<div class="sub">'+a.variacoes+' variações</div>' : '')+'</td>'
+              ? '<div class="sub">'+a.variacoes+' variações</div>' : '')
+          + '</div></div></td>'
           + '<td class="num-td">'+numero(a.leads)+'</td>'
           + colunasQuiz.map(function(c){
               var n = Number(resp[c.valor] || 0);
