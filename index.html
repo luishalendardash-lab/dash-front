@@ -350,6 +350,23 @@ tbody tr:hover{background:var(--fundo)}
 }
 .bolinha.ativo{background:var(--positivo);box-shadow:0 0 6px rgba(74,222,128,.5)}
 .bolinha.parado{background:var(--negativo)}
+/* a bolinha do conjunto é clicável: liga e pausa no Meta */
+.bolinha-bt{
+  background:none;border:0;padding:4px;margin:-4px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;border-radius:50%;
+  transition:background .15s;
+}
+.bolinha-bt:hover{background:var(--vidro-solido)}
+.bolinha-bt:disabled{opacity:.4;cursor:wait}
+/* recolher painel: o conteúdo só é buscado quando abre */
+.recolher{
+  width:22px;height:22px;border-radius:6px;flex-shrink:0;
+  background:var(--vidro);border:1px solid var(--borda-forte);
+  color:var(--texto-2);font-size:14px;line-height:1;cursor:pointer;
+  font-family:var(--mono);display:inline-flex;align-items:center;
+  justify-content:center;padding:0;margin-right:9px;transition:all .15s;
+}
+.recolher:hover{border-color:var(--destaque);color:var(--destaque)}
 .abrir-ads{
   width:20px;height:20px;border-radius:5px;flex-shrink:0;
   background:var(--vidro);border:1px solid var(--borda-forte);
@@ -743,14 +760,18 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
         <div id="lista-anuncios"><div class="carregando">Carregando…</div></div>
       </section>
 
-      <section class="painel">
+      <section class="painel" id="painel-gasto-meta">
         <div class="painel-topo">
-          <div class="painel-titulo"><span class="emoji">💸</span> Investimento no Meta
+          <div class="painel-titulo" onclick="alternarGastoMeta()"
+               style="cursor:pointer;user-select:none">
+            <button class="recolher" id="bt-gasto-meta" title="Expandir">+</button>
+            <span class="emoji">💸</span> Investimento no Meta
             <span style="font-size:12px;color:var(--texto-3);font-weight:400;margin-left:6px">
               como está no gerenciador</span></div>
-          <button class="btn" onclick="carregarGastoMeta()">Atualizar</button>
+          <button class="btn" onclick="event.stopPropagation();carregarGastoMeta()"
+                  id="bt-atualizar-gasto" style="display:none">Atualizar</button>
         </div>
-        <div id="gasto-meta"></div>
+        <div id="gasto-meta" style="display:none"></div>
       </section>
      </div>
 
@@ -1500,7 +1521,7 @@ function trocarLancamento(){
   document.getElementById('sub-cabecalho').textContent = sel.options[sel.selectedIndex].text;
   etapaFiltro = '';
   if(telaAtual === 'home') carregarHome();
-  else if(telaAtual === 'anuncios'){ carregarAnuncios(); carregarGastoMeta(); }
+  else if(telaAtual === 'anuncios'){ carregarAnuncios(); if(gastoMetaAberto) carregarGastoMeta(); }
   else if(telaAtual === 'quiz') carregarQuiz();
   else if(telaAtual === 'vendas'){
     carregarResultado(); carregarPagamentosPendentes(); carregarVendas();
@@ -1725,7 +1746,14 @@ function irPara(tela, el){
   var alvo = document.getElementById('tela-'+tela);
   if(alvo) alvo.classList.add('on');
 
-  if(tela === 'anuncios'){ carregarAnuncios(); carregarGastoMeta(); }
+  if(tela === 'anuncios'){
+    try{
+      if(localStorage.getItem('dash_gasto_meta') === 'aberto' && !gastoMetaAberto){
+        alternarGastoMeta();
+      }
+    }catch(e){}
+    carregarAnuncios();
+  }
   if(tela === 'quiz') carregarQuiz();
   if(tela === 'email') carregarEmail();
   if(tela === 'reativar') carregarReativar();
@@ -1740,6 +1768,136 @@ function irPara(tela, el){
   if(tela === 'leads'){ carregarFunil(); carregarLeads(); carregarRecorrencia(); }
 }
 
+
+
+/**
+ * Liga ou pausa o conjunto no Meta.
+ *
+ * Pausar o errado custa dinheiro, então pede confirmação com o nome do
+ * conjunto — no meio de uma captação a pessoa clica rápido, e o nome
+ * na frente evita o engano.
+ */
+
+/**
+ * Confirmação com um SIM, na identidade da dash.
+ *
+ * Devolve uma promessa: quem chama espera a resposta como esperaria o
+ * confirm do navegador.
+ */
+function confirmarSim(titulo, detalhe){
+  return new Promise(function(resolve){
+    var fechar = function(valor){
+      document.getElementById('cortina-int').classList.remove('on');
+      document.getElementById('modal-int').classList.remove('on');
+      document.removeEventListener('keydown', tecla);
+      resolve(valor);
+    };
+
+    var tecla = function(e){
+      if(e.key === 'Escape') fechar(false);
+      if(e.key === 'Enter') fechar(true);
+    };
+
+    window.__confirmaSim = fechar;
+
+    document.getElementById('modal-int').innerHTML =
+      '<h2 style="font-size:18px;font-weight:600;margin-bottom:6px">'
+      + esc(titulo)+'</h2>'
+      + (detalhe
+          ? '<p style="font-size:13.5px;color:var(--texto-2);line-height:1.55;'
+            + 'margin-bottom:20px">'+esc(detalhe)+'</p>'
+          : '<div style="height:14px"></div>')
+      + '<div style="display:flex;gap:10px">'
+      + '<button class="btn principal" onclick="window.__confirmaSim(true)" '
+      + 'id="bt-sim" style="min-width:110px">SIM</button>'
+      + '<button class="btn" onclick="window.__confirmaSim(false)">Cancelar</button>'
+      + '</div>';
+
+    document.getElementById('cortina-int').classList.add('on');
+    document.getElementById('modal-int').classList.add('on');
+    document.addEventListener('keydown', tecla);
+
+    // o foco no SIM permite confirmar pelo Enter
+    setTimeout(function(){
+      var b = document.getElementById('bt-sim');
+      if(b) b.focus();
+    }, 50);
+  });
+}
+
+async function mudarStatusConjunto(id, novo, nome){
+  var acao = novo === 'ACTIVE' ? 'Ativar' : 'Pausar';
+
+  // Um SIM direto, no lugar da caixa do navegador: a decisão é rápida
+  // no meio da captação, e a caixa nativa é feia e fácil de ignorar.
+  var ok = await confirmarSim(
+    acao + ' o conjunto?',
+    novo === 'PAUSED'
+      ? 'Ele para de gastar e de trazer lead na hora.'
+      : 'Ele volta a rodar e a gastar na hora.'
+  );
+  if(!ok) return;
+
+  var b = document.getElementById('st-' + id);
+  if(b) b.disabled = true;
+
+  try{
+    var r = await fetch(API + '/api/ads-status', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify({ id: id, status: novo })
+    });
+    var d = await r.json();
+
+    if(d.ok){
+      mostrarToast(novo === 'ACTIVE' ? 'Conjunto ativado' : 'Conjunto pausado');
+      // recarrega para a bolinha e os números acompanharem
+      carregarAnuncios();
+    } else {
+      alert(d.erro || 'não deu para mudar');
+      if(b) b.disabled = false;
+    }
+  }catch(e){
+    alert(e.message);
+    if(b) b.disabled = false;
+  }
+}
+
+
+var gastoMetaAberto = false;
+
+/**
+ * Recolhe o painel de investimento.
+ *
+ * Ele é uma tabela longa que vale conferir de vez em quando, não todo
+ * dia — e ocupava metade da rolagem da tela de anúncios. Fechado por
+ * padrão, e a busca só acontece quando é aberto: não adianta carregar
+ * dado que ninguém vai olhar.
+ */
+function alternarGastoMeta(){
+  gastoMetaAberto = !gastoMetaAberto;
+
+  var corpo = document.getElementById('gasto-meta');
+  var bt = document.getElementById('bt-gasto-meta');
+  var atualizar = document.getElementById('bt-atualizar-gasto');
+
+  if(corpo) corpo.style.display = gastoMetaAberto ? '' : 'none';
+  if(atualizar) atualizar.style.display = gastoMetaAberto ? '' : 'none';
+  if(bt){
+    bt.textContent = gastoMetaAberto ? '−' : '+';
+    bt.title = gastoMetaAberto ? 'Recolher' : 'Expandir';
+  }
+
+  if(gastoMetaAberto && corpo && !corpo.dataset.carregado){
+    corpo.dataset.carregado = '1';
+    // o painel de investimento só carrega quando aberto
+  if(gastoMetaAberto) carregarGastoMeta();
+  }
+
+  try{
+    localStorage.setItem('dash_gasto_meta', gastoMetaAberto ? 'aberto' : 'fechado');
+  }catch(e){}
+}
 
 var conjuntosAbertos = {};
 
@@ -1803,8 +1961,18 @@ async function abrirConjuntos(chave){
         '<tr class="lin-conj">'
         + '<td class="nome-conj">'
         + '<span style="display:flex;gap:7px;align-items:center">'
-        + '<span class="bolinha '+(c.ativo ? 'ativo' : 'parado')+'" title="'
-        + esc(c.status || '')+'"></span><b>'+esc(c.conjunto)+'</b></span>'
+        + (c.adset_id
+            // a bolinha vira botão: um clique liga ou pausa no Meta
+            ? '<button class="bolinha-bt" id="st-'+esc(c.adset_id)+'" '
+              + 'onclick="mudarStatusConjunto(\''+esc(c.adset_id)+'\',\''
+              + (c.ativo ? 'PAUSED' : 'ACTIVE')+'\',\''
+              + esc(c.conjunto).replace(/'/g,"\\'")+'\')" '
+              + 'title="'+(c.ativo ? 'Pausar no Meta' : 'Ativar no Meta')+'">'
+              + '<span class="bolinha '+(c.ativo ? 'ativo' : 'parado')+'"></span>'
+              + '</button>'
+            : '<span class="bolinha '+(c.ativo ? 'ativo' : 'parado')+'" title="'
+              + esc(c.status || '')+'"></span>')
+        + '<b>'+esc(c.conjunto)+'</b></span>'
         + (c.quantas_variacoes > 1
             ? '<div class="sub" style="padding-left:15px">'
               + c.quantas_variacoes+' variações aqui</div>'
