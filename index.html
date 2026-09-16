@@ -358,6 +358,24 @@ tbody tr:hover{background:var(--fundo)}
 }
 .bolinha-bt:hover{background:var(--vidro-solido)}
 .bolinha-bt:disabled{opacity:.4;cursor:wait}
+.lupa{
+  background:none;border:0;padding:1px 4px;cursor:pointer;opacity:.35;
+  font-size:12px;line-height:1;transition:opacity .15s;
+}
+.lupa:hover{opacity:1}
+.campo-copia{
+  display:flex;gap:8px;align-items:center;margin-bottom:9px;
+  background:var(--vidro);border:1px solid var(--borda);
+  border-radius:9px;padding:9px 12px;
+}
+.campo-copia .rot{
+  font-size:11px;color:var(--texto-3);text-transform:uppercase;
+  letter-spacing:.05em;flex-shrink:0;width:72px;
+}
+.campo-copia .val{
+  flex:1;font-size:12.5px;word-break:break-all;line-height:1.4;
+}
+.campo-copia .val.mono{font-family:var(--mono);font-size:11.5px;color:var(--texto-2)}
 /* recolher painel: o conteúdo só é buscado quando abre */
 .recolher{
   width:22px;height:22px;border-radius:6px;flex-shrink:0;
@@ -1899,6 +1917,74 @@ function alternarGastoMeta(){
   }catch(e){}
 }
 
+
+/**
+ * Mostra onde o conjunto está no Gerenciador.
+ *
+ * Com dezenas de campanhas e centenas de conjuntos, achar pelo nome
+ * demora mais do que analisar o número. Aqui vem a campanha, os ids
+ * para colar na busca, e um link que abre direto no conjunto.
+ */
+function verCampanha(c){
+  var linkGerenciador = c.conta_id && c.adset_id
+    ? 'https://adsmanager.facebook.com/adsmanager/manage/ads?act='
+      + encodeURIComponent(String(c.conta_id).replace('act_',''))
+      + '&selected_adset_ids=' + encodeURIComponent(c.adset_id)
+    : null;
+
+  document.getElementById('modal-int').innerHTML =
+    '<h2 style="font-size:17px;font-weight:600;margin-bottom:3px;'
+    + 'display:flex;gap:8px;align-items:center">'
+    + '<span class="bolinha '+(c.ativo ? 'ativo' : 'parado')+'"></span>'
+    + 'Onde encontrar</h2>'
+    + '<p style="font-size:12.5px;color:var(--texto-3);margin-bottom:18px">'
+    + 'No Gerenciador de Anúncios do Meta</p>'
+
+    + '<div class="campo-copia">'
+    + '<span class="rot">Campanha</span>'
+    + '<span class="val">'+esc(c.campanha || '(não identificada)')+'</span>'
+    + (c.campanha
+        ? '<button class="mini" onclick="copiar(\'' 
+          + esc(c.campanha).replace(/'/g, "\\'")+'\')">Copiar</button>'
+        : '')
+    + '</div>'
+
+    + '<div class="campo-copia">'
+    + '<span class="rot">Conjunto</span>'
+    + '<span class="val">'+esc(c.conjunto)+'</span>'
+    + '<button class="mini" onclick="copiar(\'' 
+    + esc(c.conjunto).replace(/'/g, "\\'")+'\')">Copiar</button>'
+    + '</div>'
+
+    + '<div class="campo-copia">'
+    + '<span class="rot">ID</span>'
+    + '<span class="val mono">'+esc(c.adset_id)+'</span>'
+    + '<button class="mini" onclick="copiar(\''+esc(c.adset_id)+'\')">Copiar</button>'
+    + '</div>'
+
+    + '<div class="nota-tabela" style="margin-top:4px">'
+    + 'Colar o <b>ID</b> na busca do Gerenciador é mais rápido que procurar '
+    + 'pelo nome — ele leva direto ao conjunto.</div>'
+
+    + '<div style="display:flex;gap:10px;margin-top:18px">'
+    + (linkGerenciador
+        ? '<a class="btn principal" href="'+linkGerenciador+'" target="_blank" '
+          + 'rel="noopener" style="text-decoration:none;display:inline-flex;'
+          + 'align-items:center">Abrir no Gerenciador</a>'
+        : '')
+    + '<button class="btn" onclick="fecharIntegracao()">Fechar</button>'
+    + '</div>';
+
+  document.getElementById('cortina-int').classList.add('on');
+  document.getElementById('modal-int').classList.add('on');
+}
+
+function copiar(texto){
+  navigator.clipboard.writeText(texto)
+    .then(function(){ mostrarToast('Copiado'); })
+    .catch(function(){ mostrarToast('Não deu para copiar'); });
+}
+
 var conjuntosAbertos = {};
 
 /**
@@ -1972,7 +2058,19 @@ async function abrirConjuntos(chave){
               + '</button>'
             : '<span class="bolinha '+(c.ativo ? 'ativo' : 'parado')+'" title="'
               + esc(c.status || '')+'"></span>')
-        + '<b>'+esc(c.conjunto)+'</b></span>'
+        + '<b>'+esc(c.conjunto)+'</b>'
+        // onde achar isso no Gerenciador: com muitas campanhas,
+        // procurar o conjunto pelo nome demora mais que ler o número
+        + (c.adset_id
+            ? '<button class="lupa" onclick=\'verCampanha('
+              + JSON.stringify({
+                  conjunto: c.conjunto, campanha: c.campanha,
+                  adset_id: c.adset_id, campanha_id: c.campanha_id,
+                  conta_id: c.conta_id, ativo: c.ativo
+                }).replace(/'/g, '&#39;')
+              + ')\' title="Onde está no Gerenciador">🔍</button>'
+            : '')
+        + '</span>'
         + (c.quantas_variacoes > 1
             ? '<div class="sub" style="padding-left:15px">'
               + c.quantas_variacoes+' variações aqui</div>'
