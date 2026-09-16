@@ -108,12 +108,41 @@ select{
      caber o conteúdo, então uma tabela larga estica a página inteira.
      O zero como mínimo faz a coluna respeitar a largura disponível e
      deixa a rolagem acontecer dentro do painel. */
-  grid-template-columns:minmax(0,1fr) 232px;
-  gap:22px;padding:22px 26px 60px;max-width:1500px;margin:0 auto;
+  grid-template-columns:minmax(0,1fr) var(--menu-larg, 232px);
+  gap:22px;padding:22px 26px 60px;margin:0 auto;
+
+  /* Antes eram 1500px fixos, e em tela grande sobrava faixa preta dos
+     dois lados enquanto a tabela de anúncios rolava por dentro. Agora
+     o conteúdo ocupa a largura disponível até um limite generoso — a
+     tabela tem muitas colunas e cada uma que aparece é uma a menos
+     para procurar rolando. */
+  max-width:min(2100px, 100%);
 }
 .corpo > *{min-width:0}
 @media(max-width:960px){.corpo{grid-template-columns:1fr}}
-.navegacao{display:flex;flex-direction:column;gap:6px;position:sticky;top:84px;align-self:start}
+
+/* menu recolhido: a coluna some e o conteúdo ocupa tudo */
+body.menu-fechado .corpo{grid-template-columns:minmax(0,1fr) 0}
+body.menu-fechado .navegacao > *:not(.menu-alternar){display:none}
+body.menu-fechado .navegacao{gap:0}
+
+.navegacao{
+  display:flex;flex-direction:column;gap:6px;position:sticky;top:84px;
+  align-self:start;position:relative;
+}
+.menu-alternar{
+  position:absolute;left:-13px;top:2px;z-index:5;
+  width:24px;height:24px;border-radius:50%;
+  background:var(--vidro-solido);border:1px solid var(--borda-forte);
+  color:var(--texto-2);cursor:pointer;font-size:13px;line-height:1;
+  display:flex;align-items:center;justify-content:center;padding:0;
+  font-family:var(--mono);transition:all .15s;
+}
+.menu-alternar:hover{border-color:var(--destaque);color:var(--destaque)}
+body.menu-fechado .menu-alternar{left:-30px}
+@media(max-width:960px){.menu-alternar{display:none}
+  body.menu-fechado .corpo{grid-template-columns:1fr}
+  body.menu-fechado .navegacao > *{display:flex}}
 .nav-item{
   display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:var(--raio-p);
   color:var(--texto-2);cursor:pointer;font-size:13.5px;border:1px solid transparent;
@@ -301,6 +330,26 @@ tbody tr:hover{background:var(--fundo)}
 .lanc-op:hover{border-color:var(--borda-forte)}
 .lanc-op.on{border-color:var(--destaque)}
 .lanc-op input{width:auto;margin:0;flex-shrink:0}
+.periodo-barra{
+  display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+  padding:10px 0 14px;border-bottom:1px solid var(--borda);margin-bottom:14px;
+}
+.periodo-atalhos{display:flex;gap:5px;flex-wrap:wrap}
+.periodo-atalhos .mini.on{
+  background:var(--destaque);border-color:var(--destaque);color:#1A1409;font-weight:600;
+}
+.periodo-datas{display:flex;gap:7px;align-items:center}
+.periodo-datas input{
+  width:auto;padding:6px 9px;font-size:12.5px;margin:0;
+  font-family:var(--mono);color-scheme:dark;
+}
+.periodo-rotulo{font-size:12.5px;color:var(--texto-3);margin-left:auto}
+/* a bolinha de status: verde rodando, vermelho parado */
+.bolinha{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block;
+}
+.bolinha.ativo{background:var(--positivo);box-shadow:0 0 6px rgba(74,222,128,.5)}
+.bolinha.parado{background:var(--negativo)}
 .abrir-ads{
   width:20px;height:20px;border-radius:5px;flex-shrink:0;
   background:var(--vidro);border:1px solid var(--borda-forte);
@@ -659,6 +708,23 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
             <button class="btn" onclick="carregarAnuncios()">Atualizar</button>
           </div>
         </div>
+
+        <div class="periodo-barra">
+          <div class="periodo-atalhos">
+            <button class="mini" onclick="periodoAds('tudo')" id="pa-tudo">Máximo</button>
+            <button class="mini" onclick="periodoAds('hoje')" id="pa-hoje">Hoje</button>
+            <button class="mini" onclick="periodoAds('ontem')" id="pa-ontem">Ontem</button>
+            <button class="mini" onclick="periodoAds('7')" id="pa-7">7 dias</button>
+            <button class="mini" onclick="periodoAds('14')" id="pa-14">14 dias</button>
+          </div>
+          <div class="periodo-datas">
+            <input type="date" id="ads-de" onchange="periodoAds('custom')">
+            <span style="color:var(--texto-3);font-size:12.5px">até</span>
+            <input type="date" id="ads-ate" onchange="periodoAds('custom')">
+          </div>
+          <span id="periodo-rotulo" class="periodo-rotulo"></span>
+        </div>
+
         <div id="resumo-anuncios"></div>
 
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
@@ -1183,6 +1249,8 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
     </div>
 
     <nav class="navegacao">
+      <button class="menu-alternar" onclick="alternarMenu()" id="bt-menu"
+              title="Recolher o menu">−</button>
       <button class="nav-item ativo" onclick="irPara('home',this)"><span class="ico">🏠</span> Home</button>
       <div class="nav-titulo">Negócio</div>
       <button class="nav-item" onclick="irPara('faturamento',this)"><span class="ico">💰</span> Faturamento</button>
@@ -1707,7 +1775,10 @@ async function abrirConjuntos(chave){
     var r = await fetch(API + '/api/anuncio-conjuntos', {
       method:'POST',
       headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
-      body: JSON.stringify({ lancamento: lancamentoAtual, chave: chave })
+      body: JSON.stringify({
+        lancamento: lancamentoAtual, chave: chave,
+        de: periodoAds_de, ate: periodoAds_ate
+      })
     });
     d = await r.json();
   }catch(e){
@@ -1730,9 +1801,13 @@ async function abrirConjuntos(chave){
 
       linha.insertAdjacentHTML('afterend',
         '<tr class="lin-conj">'
-        + '<td class="nome-conj"><b>'+esc(c.conjunto)+'</b>'
+        + '<td class="nome-conj">'
+        + '<span style="display:flex;gap:7px;align-items:center">'
+        + '<span class="bolinha '+(c.ativo ? 'ativo' : 'parado')+'" title="'
+        + esc(c.status || '')+'"></span><b>'+esc(c.conjunto)+'</b></span>'
         + (c.quantas_variacoes > 1
-            ? '<div class="sub">'+c.quantas_variacoes+' variações aqui</div>'
+            ? '<div class="sub" style="padding-left:15px">'
+              + c.quantas_variacoes+' variações aqui</div>'
             : '')
         + '</td>'
         + '<td class="num-td">'+numero(c.leads)+'</td>'
@@ -1762,6 +1837,113 @@ async function abrirConjuntos(chave){
   if(botao){ botao.textContent = '−'; botao.classList.add('on'); }
 }
 
+
+
+/**
+ * Recolhe o menu para a tabela usar a largura inteira.
+ *
+ * A tela de anúncios tem muitas colunas — uma resposta do quiz por
+ * coluna, mais custo e resultado. Cada coluna que cabe é uma a menos
+ * para procurar rolando de lado.
+ */
+function alternarMenu(){
+  var fechado = document.body.classList.toggle('menu-fechado');
+  var b = document.getElementById('bt-menu');
+  if(b){
+    b.textContent = fechado ? '+' : '−';
+    b.title = fechado ? 'Mostrar o menu' : 'Recolher o menu';
+  }
+  try{ localStorage.setItem('dash_menu', fechado ? 'fechado' : 'aberto'); }catch(e){}
+}
+
+// a escolha vale nas próximas visitas
+try{
+  if(localStorage.getItem('dash_menu') === 'fechado'){
+    document.body.classList.add('menu-fechado');
+  }
+}catch(e){}
+
+// ================= PERÍODO DA TELA DE ANÚNCIOS =================
+//
+// Sem período, a tela mostra o lançamento inteiro. Um criativo que
+// rendia na primeira semana e piorou continua com média boa, e a
+// decisão de cortar não aparece.
+
+var periodoAds_de = null;
+var periodoAds_ate = null;
+var periodoAds_atalho = 'tudo';
+
+function hojeBR(){
+  // o dia do cliente, não o do navegador em outro fuso
+  var d = new Date(new Date().toLocaleString('en-US', {timeZone:'America/Sao_Paulo'}));
+  return d;
+}
+
+function dataISO(d){
+  return d.getFullYear() + '-'
+    + String(d.getMonth()+1).padStart(2,'0') + '-'
+    + String(d.getDate()).padStart(2,'0');
+}
+
+function periodoAds(qual){
+  var hoje = hojeBR();
+  var de = null, ate = null;
+
+  if(qual === 'tudo'){
+    de = null; ate = null;
+  } else if(qual === 'hoje'){
+    de = ate = dataISO(hoje);
+  } else if(qual === 'ontem'){
+    var o = new Date(hoje); o.setDate(o.getDate() - 1);
+    de = ate = dataISO(o);
+  } else if(qual === '7' || qual === '14'){
+    var n = Number(qual);
+    var i = new Date(hoje); i.setDate(i.getDate() - (n - 1));
+    de = dataISO(i); ate = dataISO(hoje);
+  } else {
+    // digitou nos campos
+    de = (document.getElementById('ads-de') || {}).value || null;
+    ate = (document.getElementById('ads-ate') || {}).value || null;
+    if(de && ate && de > ate){ var x = de; de = ate; ate = x; }
+  }
+
+  periodoAds_de = de;
+  periodoAds_ate = ate;
+  periodoAds_atalho = qual;
+
+  var cde = document.getElementById('ads-de');
+  var cate = document.getElementById('ads-ate');
+  if(cde) cde.value = de || '';
+  if(cate) cate.value = ate || '';
+
+  ['tudo','hoje','ontem','7','14'].forEach(function(k){
+    var b = document.getElementById('pa-' + k);
+    if(b) b.classList.toggle('on', qual === k);
+  });
+
+  carregarAnuncios();
+}
+
+function rotuloPeriodo(){
+  var el = document.getElementById('periodo-rotulo');
+  if(!el) return;
+
+  if(!periodoAds_de && !periodoAds_ate){
+    el.textContent = 'lançamento inteiro';
+    return;
+  }
+
+  var fmt = function(s){
+    if(!s) return '';
+    var p = s.split('-');
+    return p[2] + '/' + p[1];
+  };
+
+  el.textContent = periodoAds_de === periodoAds_ate
+    ? fmt(periodoAds_de)
+    : fmt(periodoAds_de) + ' a ' + fmt(periodoAds_ate);
+}
+
 // ================= ANÚNCIOS =================
 async function carregarAnuncios(){
   conjuntosAbertos = {};
@@ -1769,8 +1951,14 @@ async function carregarAnuncios(){
   alvo.innerHTML = '<div class="carregando">Carregando…</div>';
 
   var d;
-  try{ d = await api('/api/anuncios?lancamento='+encodeURIComponent(lancamentoAtual)); }
+  var q = '/api/anuncios?lancamento=' + encodeURIComponent(lancamentoAtual)
+    + (periodoAds_de ? '&de=' + periodoAds_de : '')
+    + (periodoAds_ate ? '&ate=' + periodoAds_ate : '');
+
+  try{ d = await api(q); }
   catch(e){ alvo.innerHTML = '<div class="vazio">⚠️ '+e.message+'</div>'; return; }
+
+  rotuloPeriodo();
 
   if(!d.ok){ alvo.innerHTML = '<div class="vazio">'+(d.erro||'Sem dados')+'</div>'; return; }
 
@@ -1886,9 +2074,19 @@ async function carregarAnuncios(){
                 + 'onclick="abrirConjuntos(\''+esc(a.chave).replace(/'/g,"\\'")+'\')" '
                 + 'title="Ver os conjuntos">+</button>'
               : '<span style="width:20px;flex-shrink:0"></span>')
-          + '<div><div style="font-weight:500">'+esc(a.anuncio)+'</div>'
+          + '<div><div style="font-weight:500;display:flex;gap:7px;align-items:center">'
+          // verde quando ao menos uma variação está rodando
+          + (a.variacoes_total
+              ? '<span class="bolinha '+(a.ativo ? 'ativo' : 'parado')+'" title="'
+                + (a.ativo
+                    ? a.variacoes_ativas+' de '+a.variacoes_total+' rodando'
+                    : 'todas pausadas')+'"></span>'
+              : '')
+          + esc(a.anuncio)+'</div>'
           + (a.variacoes > 1
-              ? '<div class="sub">'+a.variacoes+' variações</div>' : '')
+              ? '<div class="sub">'+a.variacoes+' variações'
+                + (a.variacoes_total && !a.ativo ? ' · pausadas' : '')
+                + '</div>' : '')
           + '</div></div></td>'
           + '<td class="num-td">'+numero(a.leads)+'</td>'
           + colunasQuiz.map(function(c){
@@ -5580,6 +5778,15 @@ var podeInstalar = null;
 // O navegador avisa quando a instalação é possível. Guardamos o evento
 // porque o pedido só pode partir de um clique — chamar sozinho é
 // bloqueado.
+(function(){
+  // o botão precisa combinar com o estado guardado
+  var b = document.getElementById('bt-menu');
+  if(b && document.body.classList.contains('menu-fechado')){
+    b.textContent = '+';
+    b.title = 'Mostrar o menu';
+  }
+})();
+
 registrarServiceWorker();
 
 window.addEventListener('beforeinstallprompt', function(e){
