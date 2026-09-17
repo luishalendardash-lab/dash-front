@@ -358,6 +358,30 @@ tbody tr:hover{background:var(--fundo)}
 }
 .bolinha-bt:hover{background:var(--vidro-solido)}
 .bolinha-bt:disabled{opacity:.4;cursor:wait}
+.queima-caixa{
+  border:1px solid #8A3A16;border-radius:12px;padding:14px 16px;
+  background:linear-gradient(90deg,rgba(138,58,22,.18),rgba(138,58,22,.06));
+  margin-bottom:16px;
+}
+.queima-topo{
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  font-size:14px;font-weight:600;color:#F5B78A;margin-bottom:4px;
+}
+.queima-valor{
+  font-family:var(--mono);font-size:17px;color:#FF9A5C;
+}
+.queima-lista{
+  display:flex;flex-direction:column;gap:5px;margin-top:10px;
+  font-size:12.5px;
+}
+.queima-item{
+  display:flex;gap:10px;align-items:center;color:var(--texto-2);
+}
+.queima-item b{color:var(--texto);font-weight:500}
+.queima-item .val{margin-left:auto;font-family:var(--mono);color:#FF9A5C}
+/* a linha da tabela de quem gastou sem trazer nada */
+tr.queimando td{background:rgba(138,58,22,.10)}
+tr.queimando td:first-child{box-shadow:inset 3px 0 0 #C4571F}
 .lupa{
   background:none;border:0;padding:1px 4px;cursor:pointer;opacity:.35;
   font-size:12px;line-height:1;transition:opacity .15s;
@@ -760,6 +784,7 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
           <span id="periodo-rotulo" class="periodo-rotulo"></span>
         </div>
 
+        <div id="aviso-queimando"></div>
         <div id="resumo-anuncios"></div>
 
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
@@ -1985,6 +2010,58 @@ function copiar(texto){
     .catch(function(){ mostrarToast('Não deu para copiar'); });
 }
 
+
+/**
+ * Avisa sobre criativo que gastou e não trouxe lead.
+ *
+ * Esse é o caso que passa despercebido: sem lead, ele não aparecia na
+ * lista, e o dinheiro saía só no Gerenciador. Agora fica no topo,
+ * somado, com destaque para os que ainda estão rodando.
+ */
+function desenharAvisoQueima(q){
+  var alvo = document.getElementById('aviso-queimando');
+  if(!alvo) return;
+
+  if(!q || !Number(q.quantos)){
+    alvo.innerHTML = '';
+    return;
+  }
+
+  var lista = (q.criativos || []).slice(0, 6);
+
+  alvo.innerHTML =
+    '<div class="queima-caixa">'
+    + '<div class="queima-topo">🔥 '
+    + numero(q.quantos)+' criativo'+(q.quantos > 1 ? 's' : '')
+    + ' gastando sem trazer lead'
+    + '<span class="queima-valor">'+moeda(q.gasto)+'</span>'
+    + (Number(q.ativos)
+        ? '<span style="font-size:12px;font-weight:400;color:#F5B78A">'
+          + numero(q.ativos)+' ainda rodando</span>'
+        : '<span style="font-size:12px;font-weight:400;color:var(--texto-3)">'
+          + 'já pausados</span>')
+    + '</div>'
+
+    + '<div class="queima-lista">'
+    + lista.map(function(c){
+        return '<div class="queima-item">'
+          + '<span class="bolinha '+(c.ativo ? 'ativo' : 'parado')+'"></span>'
+          + '<b>'+esc(c.anuncio || '(sem nome)')+'</b>'
+          + (Number(c.impressoes)
+              ? '<span style="color:var(--texto-3)">'
+                + numero(c.impressoes)+' impressões</span>'
+              : '')
+          + '<span class="val">'+moeda(c.gasto)+'</span>'
+          + '</div>';
+      }).join('')
+    + (q.criativos && q.criativos.length > 6
+        ? '<div style="font-size:12px;color:var(--texto-3);margin-top:3px">'
+          + 'e mais '+(q.criativos.length - 6)+' na tabela abaixo</div>'
+        : '')
+    + '</div>'
+    + '</div>';
+}
+
 var conjuntosAbertos = {};
 
 /**
@@ -2044,7 +2121,7 @@ async function abrirConjuntos(chave){
       var resp = c.respostas || {};
 
       linha.insertAdjacentHTML('afterend',
-        '<tr class="lin-conj">'
+        '<tr class="lin-conj'+(c.queimando ? ' queimando' : '')+'">'
         + '<td class="nome-conj">'
         + '<span style="display:flex;gap:7px;align-items:center">'
         + (c.adset_id
@@ -2225,6 +2302,7 @@ async function carregarAnuncios(){
   catch(e){ alvo.innerHTML = '<div class="vazio">⚠️ '+e.message+'</div>'; return; }
 
   rotuloPeriodo();
+  desenharAvisoQueima(d.queimando);
 
   if(!d.ok){ alvo.innerHTML = '<div class="vazio">'+(d.erro||'Sem dados')+'</div>'; return; }
 
@@ -2333,6 +2411,7 @@ async function carregarAnuncios(){
         // mostra os conjuntos, que é onde a decisão de público acontece.
         var podeAbrir = !semOrigem && a.chave;
         return '<tr'+(semOrigem ? ' style="opacity:.55"' : '')
+          + (a.queimando ? ' class="queimando"' : '')
           + (podeAbrir ? ' id="lin-'+esc(a.chave)+'"' : '')+'>'
           + '<td><div style="display:flex;gap:8px;align-items:flex-start">'
           + (podeAbrir
