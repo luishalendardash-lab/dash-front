@@ -2033,19 +2033,14 @@ function desenharAvisoQueima(q){
     '<div class="queima-caixa">'
     + '<div class="queima-topo">🔥 '
     + numero(q.quantos)+' criativo'+(q.quantos > 1 ? 's' : '')
-    + ' gastando sem trazer lead'
+    + ' rodando sem trazer lead'
     + '<span class="queima-valor">'+moeda(q.gasto)+'</span>'
-    + (Number(q.ativos)
-        ? '<span style="font-size:12px;font-weight:400;color:#F5B78A">'
-          + numero(q.ativos)+' ainda rodando</span>'
-        : '<span style="font-size:12px;font-weight:400;color:var(--texto-3)">'
-          + 'já pausados</span>')
     + '</div>'
 
     + '<div class="queima-lista">'
     + lista.map(function(c){
         return '<div class="queima-item">'
-          + '<span class="bolinha '+(c.ativo ? 'ativo' : 'parado')+'"></span>'
+          + '<span class="bolinha ativo"></span>'
           + '<b>'+esc(c.anuncio || '(sem nome)')+'</b>'
           + (Number(c.impressoes)
               ? '<span style="color:var(--texto-3)">'
@@ -2059,6 +2054,15 @@ function desenharAvisoQueima(q){
           + 'e mais '+(q.criativos.length - 6)+' na tabela abaixo</div>'
         : '')
     + '</div>'
+
+    // sem isto o número parece arbitrário
+    + (q.corte
+        ? '<div style="font-size:11.5px;color:var(--texto-3);margin-top:10px;'
+          + 'line-height:1.5">Só entram aqui os que ainda estão rodando e já '
+          + 'gastaram mais de '+moeda(q.corte)+' — o equivalente a dois leads '
+          + 'pelo CPL do lançamento. Criativo novo, pausado ou com pouco gasto '
+          + 'fica de fora.</div>'
+        : '')
     + '</div>';
 }
 
