@@ -6712,6 +6712,7 @@ function marcarRespostas(valor){
 
 var lancsReat = [];
 var reativando = false;
+var reativarPrevistos = 0;
 
 async function carregarReativar(){
   var alvo = document.getElementById('lista-lanc-reat');
@@ -6823,6 +6824,9 @@ async function previaReativacao(){
   var desc = d.descartados || {};
   var total = Number(r2.total || 0);
 
+  // guardado para a barra de progresso do envio saber a meta
+  reativarPrevistos = total;
+
   alvo.innerHTML =
     '<div class="metricas" style="margin-bottom:14px">'
     + '<div class="metrica" style="border-color:var(--destaque)">'
@@ -6894,12 +6898,18 @@ async function dispararReativacao(){
 
   var enviados = 0, falhas = 0, voltas = 0;
   var erro = null;
+  var previsto = reativarPrevistos || 0;
 
-  while(voltas < 200){
+  // 60 por volta, até 400 voltas: cobre 24 mil leads
+  while(voltas < 400){
     voltas++;
     prog.innerHTML = '<div class="alerta-caixa">Enviando… '
-      + numero(enviados)+' até agora'
+      + numero(enviados)+' de '+numero(previsto || 0)
       + (falhas ? ' · '+numero(falhas)+' falharam' : '')
+      + '<div style="margin-top:7px;height:4px;background:var(--borda);'
+      + 'border-radius:2px;overflow:hidden"><div style="height:100%;'
+      + 'background:var(--destaque);width:'
+      + (previsto ? Math.min(100, Math.round(100*enviados/previsto)) : 0)+'%"></div></div>'
       + (erro ? '<div style="margin-top:6px;font-size:12px;opacity:.8">'
                 + esc(erro)+'</div>' : '')
       + '</div>';
@@ -6909,7 +6919,9 @@ async function dispararReativacao(){
       var r = await fetch(API + '/api/reativar', {
         method:'POST',
         headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
-        body: JSON.stringify(Object.assign({}, f, { limite: 200 }))
+        // 60 por chamada: o Worker tem tempo limitado e um lote grande
+        // é cortado no meio, perdendo o registro do que já foi enviado
+        body: JSON.stringify(Object.assign({}, f, { limite: 60 }))
       });
       d = await r.json();
     }catch(e){
