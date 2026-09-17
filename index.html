@@ -6896,72 +6896,100 @@ async function dispararReativacao(){
   b.disabled = true;
   reativando = true;
 
-  var enviados = 0, falhas = 0, voltas = 0;
-  var erro = null;
-  var previsto = reativarPrevistos || 0;
+  // ---- 1. enfileira tudo de uma vez
+  prog.innerHTML = '<div class="alerta-caixa">Montando a fila…</div>';
 
-  // 60 por volta, até 400 voltas: cobre 24 mil leads
+  var fila;
+  try{
+    var rf = await fetch(API + '/api/reativar-fila', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify(f)
+    });
+    fila = await rf.json();
+  }catch(e){
+    prog.innerHTML = '<div class="alerta-caixa perigo">'+esc(e.message)+'</div>';
+    reativando = false; b.disabled = false;
+    return;
+  }
+
+  if(!fila.ok){
+    prog.innerHTML = '<div class="alerta-caixa perigo">'
+      + esc(fila.erro || 'não deu para montar a fila')+'</div>';
+    reativando = false; b.disabled = false;
+    return;
+  }
+
+  if(!Number(fila.na_fila)){
+    prog.innerHTML = '<div class="alerta-caixa">'
+      + esc(fila.observacao || 'nenhum lead novo para esta campanha')+'</div>';
+    reativando = false; b.disabled = false;
+    return;
+  }
+
+  // ---- 2. empurra a fila; o cron continua se a aba fechar
+  var enviados = 0, voltas = 0, erro = null;
+  var naFila = Number(fila.na_fila);
+
   while(voltas < 400){
     voltas++;
-    prog.innerHTML = '<div class="alerta-caixa">Enviando… '
-      + numero(enviados)+' de '+numero(previsto || 0)
-      + (falhas ? ' · '+numero(falhas)+' falharam' : '')
+
+    prog.innerHTML = '<div class="alerta-caixa">'
+      + 'Enviando… '+numero(enviados)+' de '+numero(naFila)
       + '<div style="margin-top:7px;height:4px;background:var(--borda);'
       + 'border-radius:2px;overflow:hidden"><div style="height:100%;'
       + 'background:var(--destaque);width:'
-      + (previsto ? Math.min(100, Math.round(100*enviados/previsto)) : 0)+'%"></div></div>'
-      + (erro ? '<div style="margin-top:6px;font-size:12px;opacity:.8">'
+      + Math.min(100, Math.round(100*enviados/naFila))+'%"></div></div>'
+      + '<div style="margin-top:7px;font-size:11.5px;color:var(--texto-3)">'
+      + 'Pode fechar esta aba — o envio continua sozinho.</div>'
+      + (erro ? '<div style="margin-top:5px;font-size:12px;opacity:.8">'
                 + esc(erro)+'</div>' : '')
       + '</div>';
 
     var d;
     try{
-      var r = await fetch(API + '/api/reativar', {
+      var r = await fetch(API + '/api/reativar-empurrar', {
         method:'POST',
         headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
-        // 60 por chamada: o Worker tem tempo limitado e um lote grande
-        // é cortado no meio, perdendo o registro do que já foi enviado
-        body: JSON.stringify(Object.assign({}, f, { limite: 60 }))
+        body: '{}'
       });
       d = await r.json();
     }catch(e){
-      erro = e.message;
+      erro = e.message + ' — o cron continua de onde parou.';
       break;
     }
 
     if(!d.ok){ erro = d.erro || 'falhou'; break; }
 
     enviados += Number(d.enviados || 0);
-    falhas += Number(d.falhas || 0);
-    if(d.primeiro_erro && !erro) erro = d.primeiro_erro;
+    if(Number(d.desistiu)) erro = numero(d.desistiu)+' desistiram após 5 tentativas';
 
-    // Se o lote inteiro falhou, parar. Seguir só repetiria o erro
-    // centenas de vezes — foi o que gerou 604 falhas antes de alguém
-    // perceber.
-    if(Number(d.falhas) > 0 && Number(d.enviados) === 0){
-      erro = (d.primeiro_erro || 'o lote inteiro falhou')
-           + ' — envio interrompido para não insistir no erro.';
-      break;
-    }
-
-    // mais falha que acerto também é sinal de parar e olhar
-    if(Number(d.falhas) > Number(d.enviados) * 2 && voltas >= 2){
-      erro = (d.primeiro_erro || 'muitas falhas')
-           + ' — envio interrompido: ' + numero(falhas) + ' falhas contra '
-           + numero(enviados) + ' envios.';
-      break;
-    }
-
-    if(d.acabou) break;
+    if(d.vazia || !Number(d.pegos)) break;
   }
 
   reativando = false;
   b.disabled = false;
 
+  // ---- 3. o quadro final, vindo do banco
+  var st = null;
+  try{
+    var rs = await api('/api/reativar-status?campanha='+encodeURIComponent(f.campanha));
+    st = (rs.campanhas || [])[0];
+  }catch(e){}
+
   prog.innerHTML = '<div class="alerta-caixa'+(erro ? ' perigo' : '')+'">'
     + (erro ? '⚠️ ' : '✅ ')
-    + numero(enviados)+' leads enviados para a campanha <b>'+esc(f.campanha)+'</b>'
-    + (falhas ? ' · '+numero(falhas)+' falharam' : '')
+    + numero(st ? st.enviados : enviados)+' leads enviados para a campanha <b>'
+    + esc(f.campanha)+'</b>'
+    + (st && Number(st.esperando)
+        ? '<div style="margin-top:6px;font-size:12.5px">'
+          + numero(st.esperando)+' ainda na fila — o sistema continua enviando '
+          + 'sozinho, de hora em hora.</div>'
+        : '')
+    + (st && Number(st.desistiu)
+        ? '<div style="margin-top:4px;font-size:12px;color:var(--texto-3)">'
+          + numero(st.desistiu)+' não entraram após 5 tentativas</div>'
+        : '')
     + (erro ? '<div style="margin-top:6px;font-size:12px">'+esc(erro)+'</div>' : '')
     + '</div>';
 
