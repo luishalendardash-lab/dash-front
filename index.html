@@ -358,6 +358,22 @@ tbody tr:hover{background:var(--fundo)}
 }
 .bolinha-bt:hover{background:var(--vidro-solido)}
 .bolinha-bt:disabled{opacity:.4;cursor:wait}
+.chave-linha{
+  display:flex;gap:12px;align-items:center;margin-bottom:16px;
+  padding-bottom:16px;border-bottom:1px solid var(--borda);
+}
+.chave{
+  width:44px;height:25px;border-radius:13px;flex-shrink:0;padding:0;
+  background:var(--vidro-solido);border:1px solid var(--borda-forte);
+  cursor:pointer;position:relative;transition:all .2s;
+}
+.chave .bola{
+  position:absolute;top:2px;left:2px;width:19px;height:19px;
+  border-radius:50%;background:var(--texto-3);transition:all .2s;
+}
+.chave.on{background:rgba(74,222,128,.22);border-color:var(--positivo)}
+.chave.on .bola{left:21px;background:var(--positivo)}
+.chave:disabled{opacity:.5;cursor:wait}
 .queima-caixa{
   border:1px solid #8A3A16;border-radius:12px;padding:14px 16px;
   background:linear-gradient(90deg,rgba(138,58,22,.18),rgba(138,58,22,.06));
@@ -1958,6 +1974,54 @@ function alternarGastoMeta(){
  * nosso banco, porque pode ter mudado no Gerenciador desde a última
  * sincronização — e mostrar valor velho aqui levaria a decisão errada.
  */
+
+/**
+ * Liga e pausa pelo modal.
+ *
+ * A bolinha da tabela faz o mesmo, mas ali é um ponto colorido — dá
+ * para clicar sem saber o que vai acontecer. Aqui o estado está
+ * escrito, e a confirmação também.
+ */
+async function ligarPausarDoModal(id, ativar){
+  var ok = await confirmarSim(
+    ativar ? 'Ativar o conjunto?' : 'Pausar o conjunto?',
+    ativar
+      ? 'Ele volta a rodar e a gastar na hora.'
+      : 'Ele para de gastar e de trazer lead na hora.'
+  );
+  if(!ok) return;
+
+  var ch = document.getElementById('ch-conj');
+  var res = document.getElementById('res-acoes');
+  if(ch) ch.disabled = true;
+
+  try{
+    var r = await fetch(API + '/api/ads-status', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify({ id: id, status: ativar ? 'ACTIVE' : 'PAUSED' })
+    });
+    var d = await r.json();
+
+    if(d.ok){
+      // redesenha o bloco inteiro: o estado da chave, o texto e o
+      // orçamento vêm todos do Meta
+      if(res) res.innerHTML = '<div class="alerta-caixa">✅ '
+        + (ativar ? 'Conjunto ativado' : 'Conjunto pausado')+'</div>';
+      carregarAcoesConjunto({ adset_id: id, conjunto: '', ativo: ativar });
+      // a tabela atrás também precisa acompanhar
+      carregarAnuncios();
+    } else {
+      if(res) res.innerHTML = '<div class="alerta-caixa perigo">'
+        + esc(d.erro || 'não deu para mudar')+'</div>';
+      if(ch) ch.disabled = false;
+    }
+  }catch(e){
+    if(res) res.innerHTML = '<div class="alerta-caixa perigo">'+esc(e.message)+'</div>';
+    if(ch) ch.disabled = false;
+  }
+}
+
 async function carregarAcoesConjunto(c){
   var alvo = document.getElementById('acoes-conjunto');
   if(!alvo) return;
@@ -1979,7 +2043,25 @@ async function carregarAcoesConjunto(c){
   var tipo = d.total ? 'total' : 'diário';
 
   alvo.innerHTML =
-    (d.no_conjunto
+    // A chave de ligar e pausar, no mesmo lugar das outras ações.
+    //
+    // A bolinha da tabela continua funcionando, mas ali é um ponto
+    // colorido: dá para clicar sem saber o que vai acontecer. Aqui
+    // está escrito.
+    '<div class="chave-linha">'
+    + '<button class="chave'+(d.status === 'ACTIVE' ? ' on' : '')+'" '
+    + 'onclick="ligarPausarDoModal(\''+esc(c.adset_id)+'\','
+    + (d.status === 'ACTIVE' ? 'false' : 'true')+')" id="ch-conj">'
+    + '<span class="bola"></span></button>'
+    + '<div><div style="font-weight:500;font-size:13.5px">'
+    + (d.status === 'ACTIVE' ? 'Rodando' : 'Pausado')+'</div>'
+    + '<div style="font-size:11.5px;color:var(--texto-3)">'
+    + (d.status === 'ACTIVE'
+        ? 'gastando agora — toque para pausar'
+        : 'não gasta nada — toque para ativar')
+    + '</div></div></div>'
+
+    + (d.no_conjunto
       ? '<div style="display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;'
         + 'margin-bottom:12px">'
         + '<div class="campo" style="margin:0;width:150px">'
@@ -6895,6 +6977,23 @@ async function dispararReativacao(){
   var prog = document.getElementById('prog-reat');
   b.disabled = true;
   reativando = true;
+
+  // ---- 0. confirma para onde vai
+  //
+  // Um envio no webhook errado põe lead antigo na sequência de quem
+  // acabou de se inscrever, e só se descobre depois. Ver o destino
+  // antes custa um clique.
+  var dest = null;
+  try{ dest = await api('/api/reativar-destino'); }catch(e){}
+
+  var segue = await confirmarSim(
+    'Enviar ' + numero(reativarPrevistos) + ' leads?',
+    'Vão para o fluxo de ' + ((dest && dest.nome) || 'reativação')
+    + (dest && dest.final ? ' (…' + dest.final + ')' : '')
+    + ' na campanha "' + f.campanha + '".'
+  );
+
+  if(!segue){ reativando = false; b.disabled = false; prog.innerHTML = ''; return; }
 
   // ---- 1. enfileira tudo de uma vez
   prog.innerHTML = '<div class="alerta-caixa">Montando a fila…</div>';
