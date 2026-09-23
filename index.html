@@ -314,6 +314,47 @@ tbody tr:hover{background:var(--fundo)}
 .passo-txt{font-size:13.5px;line-height:1.55;padding-top:3px}
 .reat-filtros{display:flex;flex-direction:column;gap:10px}
 .exp-radio{display:flex;gap:6px;flex-wrap:wrap}
+.tut-passo{
+  display:flex;gap:13px;align-items:flex-start;margin-bottom:18px;
+}
+.tut-num{
+  width:26px;height:26px;border-radius:50%;background:var(--destaque);
+  color:#1A1409;font-weight:700;font-size:13px;display:flex;
+  align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;
+}
+.tut-corpo{flex:1;min-width:0}
+.tut-corpo h4{
+  font-size:14px;font-weight:600;margin:0 0 4px;line-height:1.35;
+}
+.tut-corpo p{
+  font-size:13px;color:var(--texto-2);line-height:1.55;margin:0 0 8px;
+}
+.tut-link{
+  display:flex;gap:8px;align-items:center;
+  background:var(--vidro);border:1px solid var(--borda-forte);
+  border-radius:9px;padding:9px 11px;margin-bottom:8px;
+}
+.tut-link code{
+  flex:1;font-size:11px;word-break:break-all;line-height:1.4;
+  color:var(--texto-2);
+}
+.tut-caminho{
+  font-family:var(--mono);font-size:12px;background:var(--vidro);
+  padding:2px 6px;border-radius:5px;border:1px solid var(--borda);
+}
+.tut-perguntas{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.tut-pergunta{
+  display:flex;gap:9px;align-items:flex-start;text-align:left;
+  background:var(--vidro);border:1px solid var(--borda);border-radius:9px;
+  padding:10px 12px;cursor:pointer;font-family:inherit;width:100%;
+  color:var(--texto);font-size:12.5px;line-height:1.45;transition:border-color .15s;
+}
+.tut-pergunta:hover{border-color:var(--destaque)}
+.tut-pergunta span{flex:1}
+.tut-pergunta em{
+  font-style:normal;font-size:10.5px;color:var(--texto-3);flex-shrink:0;
+  padding-top:1px;
+}
 .ig-cabeca{
   display:flex;gap:16px;align-items:center;flex-wrap:wrap;
   padding:14px 16px;margin-bottom:16px;border-radius:12px;
@@ -1233,6 +1274,8 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
           <div class="painel-titulo"><span class="emoji">📸</span> Conteúdo no Instagram</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <span id="ig-quando" style="font-size:12px;color:var(--texto-3)"></span>
+            <button class="btn" onclick="abrirTutorialConector()">
+              🤖 Usar no Claude</button>
             <button class="btn" onclick="igSincronizar()" id="bt-ig-sync"
                     style="display:none">🔄 Atualizar números</button>
           </div>
@@ -2654,6 +2697,122 @@ try{
 }catch(e){}
 
 
+
+
+/**
+ * Ensina o cliente a ligar a dash no Claude dele.
+ *
+ * Fica dentro da tela de Conteúdo porque é ali que a dúvida aparece:
+ * ele vê os números, quer a análise, e o caminho não é óbvio.
+ */
+async function abrirTutorialConector(){
+  document.getElementById('modal-int').innerHTML =
+    '<div class="carregando">Carregando…</div>';
+  document.getElementById('cortina-int').classList.add('on');
+  document.getElementById('modal-int').classList.add('on');
+
+  var d;
+  try{ d = await api('/api/conector'); }
+  catch(e){ d = { ok:false, erro: e.message }; }
+
+  // ---- ainda não configurado: mostra o que falta, sem passo a passo
+  // que não daria para seguir
+  if(!d.ok){
+    document.getElementById('modal-int').innerHTML =
+      '<h2 style="font-size:19px;font-weight:600;margin-bottom:6px">'
+      + 'Conector ainda não configurado</h2>'
+      + '<p style="font-size:13px;color:var(--texto-2);line-height:1.6;'
+      + 'margin-bottom:16px">'+esc(d.erro || 'falhou')+'</p>'
+      + '<button class="btn" onclick="fecharIntegracao()">Fechar</button>';
+    return;
+  }
+
+  var perguntas = [
+    ['Analisa meus últimos 30 dias de conteúdo e me diz o que está funcionando',
+     'análise'],
+    ['Que formato rende mais salvamentos: Reels, Feed ou Stories?', 'formato'],
+    ['Quais foram meus 5 melhores posts e o que eles têm em comum?', 'padrão'],
+    ['Com base no que funcionou, me sugere 5 conteúdos para a próxima semana',
+     'próximos'],
+    ['Como está o lançamento e qual criativo do pago traz mais engenheiro?',
+     'lançamento'],
+    ['O conteúdo que mais engaja é o mesmo que traz lead que compra?', 'cruzamento']
+  ];
+
+  document.getElementById('modal-int').innerHTML =
+    '<h2 style="font-size:19px;font-weight:600;margin-bottom:4px">'
+    + '🤖 Usar a dash no Claude</h2>'
+    + '<p style="font-size:13px;color:var(--texto-2);margin-bottom:22px;'
+    + 'line-height:1.55">Depois de ligar uma vez, o Claude consulta a dash '
+    + 'sozinho — sem exportar planilha nem colar dados.</p>'
+
+    // ---- passo 1
+    + '<div class="tut-passo">'
+    + '<div class="tut-num">1</div>'
+    + '<div class="tut-corpo">'
+    + '<h4>Copie o link da dash</h4>'
+    + '<p>Este link é a chave de acesso. Não compartilhe em grupo.</p>'
+    + '<div class="tut-link"><code id="tut-url">'+esc(d.url)+'</code>'
+    + '<button class="mini" onclick="copiarConector()">Copiar</button></div>'
+    + '</div></div>'
+
+    // ---- passo 2
+    + '<div class="tut-passo">'
+    + '<div class="tut-num">2</div>'
+    + '<div class="tut-corpo">'
+    + '<h4>Adicione no Claude</h4>'
+    + '<p>No Claude (site ou aplicativo), abra '
+    + '<span class="tut-caminho">Configurações</span> → '
+    + '<span class="tut-caminho">Conectores</span> → '
+    + '<span class="tut-caminho">Adicionar conector personalizado</span>, '
+    + 'cole o link e confirme.</p>'
+    + '<p style="font-size:12px;color:var(--texto-3)">Não pede senha nem '
+    + 'instalação. Se aparecer campo de OAuth, deixe vazio.</p>'
+    + '</div></div>'
+
+    // ---- passo 3
+    + '<div class="tut-passo">'
+    + '<div class="tut-num">3</div>'
+    + '<div class="tut-corpo">'
+    + '<h4>Pergunte o que quiser</h4>'
+    + '<p>Clique numa pergunta para copiar e colar no Claude:</p>'
+    + '<div class="tut-perguntas">'
+    + perguntas.map(function(p){
+        return '<button class="tut-pergunta" onclick=\'copiarPergunta('
+          + JSON.stringify(p[0]).replace(/'/g,'&#39;')+')\'>'
+          + '<span>'+esc(p[0])+'</span><em>'+esc(p[1])+'</em></button>';
+      }).join('')
+    + '</div></div></div>'
+
+    // ---- o que ele consegue ver
+    + '<div class="int-rotulo" style="margin-top:6px">O que o Claude consegue ler</div>'
+    + '<div style="font-size:12.5px;color:var(--texto-2);line-height:1.6;'
+    + 'margin-bottom:6px">'
+    + (d.ferramentas || []).map(function(f){
+        return '• ' + esc(f.resumo);
+      }).join('<br>')
+    + '</div>'
+    + '<div class="nota-tabela" style="margin-top:10px">'
+    + 'O Claude só <b>lê</b> — nada que ele faça altera a dash. Os números '
+    + 'são os da última atualização, que acontece sozinha às 12h e 20h.</div>'
+
+    + '<button class="btn" style="margin-top:18px" onclick="fecharIntegracao()">'
+    + 'Entendi</button>';
+}
+
+function copiarConector(){
+  var el = document.getElementById('tut-url');
+  if(!el) return;
+  navigator.clipboard.writeText(el.textContent)
+    .then(function(){ mostrarToast('Link copiado'); })
+    .catch(function(){ mostrarToast('Não deu para copiar'); });
+}
+
+function copiarPergunta(texto){
+  navigator.clipboard.writeText(texto)
+    .then(function(){ mostrarToast('Pergunta copiada — cole no Claude'); })
+    .catch(function(){ mostrarToast('Não deu para copiar'); });
+}
 
 // ================= CONTEÚDO NO INSTAGRAM =================
 //
