@@ -313,6 +313,26 @@ tbody tr:hover{background:var(--fundo)}
 }
 .passo-txt{font-size:13.5px;line-height:1.55;padding-top:3px}
 .reat-filtros{display:flex;flex-direction:column;gap:10px}
+.exp-radio{display:flex;gap:6px;flex-wrap:wrap}
+.exp-radio .mini.on{
+  background:var(--destaque);border-color:var(--destaque);
+  color:#1A1409;font-weight:600;
+}
+.exp-lista{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:9px;
+}
+.exp-op{
+  display:flex;gap:11px;align-items:flex-start;padding:12px 14px;
+  background:var(--vidro);border:1px solid var(--borda);border-radius:10px;
+  cursor:pointer;transition:border-color .15s;
+}
+.exp-op:hover{border-color:var(--borda-forte)}
+.exp-op input{width:auto;margin:2px 0 0;flex-shrink:0;cursor:pointer}
+.exp-op b{display:block;font-size:13px;font-weight:500;line-height:1.35}
+.exp-op em{
+  display:block;font-size:11.5px;color:var(--texto-3);
+  font-style:normal;margin-top:2px;
+}
 .reat-op{
   display:flex;gap:10px;align-items:flex-start;cursor:pointer;
   border:1px solid var(--borda);border-radius:10px;padding:12px 14px;
@@ -1107,6 +1127,47 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
       </section>
      </div>
 
+
+     <div class="tela" id="tela-exportar">
+      <section class="painel">
+        <div class="painel-topo">
+          <div class="painel-titulo"><span class="emoji">📤</span> Exportar leads</div>
+        </div>
+
+        <div style="font-size:13px;color:var(--texto-2);margin-bottom:18px;line-height:1.6">
+          Baixa uma planilha com nome, e-mail e telefone dos leads que você escolher.
+          Serve para subir em outra ferramenta, mandar para a equipe ou conferir a base.
+        </div>
+
+        <div class="int-rotulo">1. De quais lançamentos</div>
+        <div id="exp-lancamentos"><div class="carregando">Carregando…</div></div>
+
+        <div class="int-rotulo" style="margin-top:22px">2. Compra</div>
+        <div class="exp-radio" id="exp-compra">
+          <button class="mini on" onclick="expCompra('todos')" id="exc-todos">Todos</button>
+          <button class="mini" onclick="expCompra('nao')" id="exc-nao">Só quem não comprou</button>
+          <button class="mini" onclick="expCompra('sim')" id="exc-sim">Só quem comprou</button>
+        </div>
+
+        <div class="int-rotulo" style="margin-top:22px">3. Perfil no quiz</div>
+        <div id="exp-respostas"><div class="carregando">Carregando…</div></div>
+
+        <div class="int-rotulo" style="margin-top:22px">4. Colunas</div>
+        <div class="exp-radio">
+          <button class="mini on" onclick="expColunas(false)" id="exl-simples">
+            Nome, e-mail e telefone</button>
+          <button class="mini" onclick="expColunas(true)" id="exl-completo">
+            Com lançamento, perfil e compra</button>
+        </div>
+        <div style="font-size:11.5px;color:var(--texto-3);margin-top:7px;line-height:1.5">
+          Três colunas é o que a maioria das ferramentas de envio espera na
+          importação. As colunas a mais ajudam se você for conferir na planilha.
+        </div>
+
+        <div id="exp-previa" style="margin-top:22px"></div>
+      </section>
+     </div>
+
      <div class="tela" id="tela-tutorial">
       <section class="painel">
         <div class="painel-topo">
@@ -1343,6 +1404,7 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
       <button class="nav-item" onclick="irPara('quiz',this)"><span class="ico">🧩</span> Quiz</button>
       <button class="nav-item" onclick="irPara('email',this)"><span class="ico">✉️</span> Gerador de e-mail</button>
       <button class="nav-item" onclick="irPara('reativar',this)"><span class="ico">♻️</span> Reativar leads</button>
+      <button class="nav-item" onclick="irPara('exportar',this)"><span class="ico">📤</span> Exportar leads</button>
       <button class="nav-item" onclick="irPara('integracoes',this)"><span class="ico">🔗</span> Integrações</button>
       <button class="nav-item" onclick="irPara('ajustes',this)"><span class="ico">⚙️</span> Ajustes</button>
       <button class="nav-item" onclick="irPara('tutorial',this)"><span class="ico">📖</span> Tutorial de uso</button>
@@ -1816,6 +1878,7 @@ function irPara(tela, el){
   if(tela === 'quiz') carregarQuiz();
   if(tela === 'email') carregarEmail();
   if(tela === 'reativar') carregarReativar();
+  if(tela === 'exportar') carregarExportar();
   if(tela === 'vendas'){
     carregarResultado(); carregarPagamentosPendentes(); carregarVendas();
   }
@@ -2484,6 +2547,288 @@ try{
     document.body.classList.add('menu-fechado');
   }
 }catch(e){}
+
+
+// ================= EXPORTAR LEADS =================
+//
+// Tirar uma lista da dash exigia SQL no Supabase. Aqui é na tela, com
+// os filtros que importam quando se monta uma lista: de qual
+// lançamento, quem comprou e quem não, e o perfil do quiz.
+
+var expLancs = [];
+var expRespostas = [];
+var expCompraSel = 'todos';
+var expCompleto = false;
+var expTimer = null;
+var expTotal = 0;
+
+async function carregarExportar(){
+  var alvoL = document.getElementById('exp-lancamentos');
+  var alvoR = document.getElementById('exp-respostas');
+  if(!alvoL) return;
+
+  var d;
+  try{
+    d = await fetch(API + '/api/exportar-opcoes', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify({ lancamentos: expMarcados() })
+    }).then(function(r){ return r.json(); });
+  }catch(e){
+    alvoL.innerHTML = '<div class="vazio">⚠️ '+esc(e.message)+'</div>';
+    return;
+  }
+
+  expLancs = d.lancamentos || [];
+  expRespostas = d.respostas || [];
+
+  // ---- os lançamentos
+  if(!expLancs.length){
+    alvoL.innerHTML = '<div class="vazio">Nenhum lançamento cadastrado.</div>';
+  } else {
+    var marcados = expMarcados();
+    alvoL.innerHTML =
+      '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
+      + '<button class="mini" onclick="expMarcarLancs(true)">Todos</button>'
+      + '<button class="mini" onclick="expMarcarLancs(false)">Nenhum</button>'
+      + '<span style="font-size:12px;color:var(--texto-3);padding-top:6px">'
+      + 'nenhum marcado = todos entram</span>'
+      + '</div>'
+      + '<div class="exp-lista">'
+      + expLancs.map(function(l){
+          var on = marcados.indexOf(l.slug) >= 0;
+          return '<label class="exp-op">'
+            + '<input type="checkbox" class="exp-lanc" value="'+esc(l.slug)+'"'
+            + (on ? ' checked' : '')+' onchange="expTrocouLanc()">'
+            + '<span><b>'+esc(l.nome)+'</b>'
+            + '<em>'+numero(l.leads)+' leads'
+            + (l.status === 'captacao' ? ' · em captação' : '')+'</em></span>'
+            + '</label>';
+        }).join('')
+      + '</div>';
+  }
+
+  // ---- as respostas do quiz
+  if(!expRespostas.length){
+    alvoR.innerHTML = '<div style="font-size:12.5px;color:var(--texto-3)">'
+      + 'Sem respostas de quiz nos lançamentos escolhidos.</div>';
+  } else {
+    alvoR.innerHTML =
+      '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
+      + '<button class="mini" onclick="expMarcarResp(true)">Todas</button>'
+      + '<button class="mini" onclick="expMarcarResp(false)">Nenhuma</button>'
+      + '<span style="font-size:12px;color:var(--texto-3);padding-top:6px">'
+      + 'nenhuma marcada = todas entram</span>'
+      + '</div>'
+      + '<div class="exp-lista">'
+      + expRespostas.map(function(r){
+          return '<label class="exp-op">'
+            + '<input type="checkbox" class="exp-resp" value="'+esc(r.valor)+'" '
+            + 'onchange="calcularExportar()">'
+            + '<span><b>'+esc(r.label)+'</b>'
+            + '<em>'+numero(r.leads)+' leads</em></span>'
+            + '</label>';
+        }).join('')
+      + '</div>';
+  }
+
+  calcularExportar();
+}
+
+function expMarcados(){
+  var v = [];
+  document.querySelectorAll('.exp-lanc:checked').forEach(function(c){
+    v.push(c.value);
+  });
+  return v;
+}
+
+function expRespSel(){
+  var v = [];
+  document.querySelectorAll('.exp-resp:checked').forEach(function(c){
+    v.push(c.value);
+  });
+  return v;
+}
+
+/**
+ * Trocar de lançamento recarrega as respostas do quiz.
+ *
+ * Cada lançamento tem o seu quiz, e oferecer uma resposta que não
+ * existe naquela base devolveria zero leads sem explicar por quê.
+ */
+function expTrocouLanc(){
+  carregarExportar();
+}
+
+function expMarcarLancs(todos){
+  document.querySelectorAll('.exp-lanc').forEach(function(c){ c.checked = todos; });
+  carregarExportar();
+}
+
+function expMarcarResp(todas){
+  document.querySelectorAll('.exp-resp').forEach(function(c){ c.checked = todas; });
+  calcularExportar();
+}
+
+function expCompra(v){
+  expCompraSel = v;
+  ['todos','nao','sim'].forEach(function(k){
+    var b = document.getElementById('exc-'+k);
+    if(b) b.classList.toggle('on', k === v);
+  });
+  calcularExportar();
+}
+
+function expColunas(completo){
+  expCompleto = completo;
+  var a = document.getElementById('exl-simples');
+  var b = document.getElementById('exl-completo');
+  if(a) a.classList.toggle('on', !completo);
+  if(b) b.classList.toggle('on', completo);
+}
+
+function expFiltros(){
+  return {
+    lancamentos: expMarcados(),
+    respostas: expRespSel(),
+    compra: expCompraSel,
+    completo: expCompleto
+  };
+}
+
+function calcularExportar(){
+  clearTimeout(expTimer);
+  expTimer = setTimeout(rodarPreviaExportar, 300);
+}
+
+async function rodarPreviaExportar(){
+  var alvo = document.getElementById('exp-previa');
+  if(!alvo) return;
+
+  alvo.innerHTML = '<div class="carregando">Contando…</div>';
+
+  var d;
+  try{
+    d = await fetch(API + '/api/exportar-previa', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify(expFiltros())
+    }).then(function(r){ return r.json(); });
+  }catch(e){
+    alvo.innerHTML = '<div class="alerta-caixa perigo">'+esc(e.message)+'</div>';
+    return;
+  }
+
+  if(!d.ok){
+    alvo.innerHTML = '<div class="alerta-caixa perigo">'
+      + esc(d.erro || 'não deu para contar')+'</div>';
+    return;
+  }
+
+  expTotal = Number(d.total || 0);
+
+  alvo.innerHTML =
+    '<div class="metricas" style="margin-bottom:14px">'
+    + '<div class="metrica" style="border-color:var(--destaque)">'
+    + '<div class="rot">📤 Vão para a planilha</div>'
+    + '<div class="num" style="color:var(--destaque)">'+numero(expTotal)+'</div>'
+    + '<div class="pe">leads</div></div>'
+    + '<div class="metrica"><div class="rot">📱 Com telefone</div>'
+    + '<div class="num">'+numero(d.com_telefone)+'</div>'
+    + (expTotal ? '<div class="pe">'
+        + Math.round(100*d.com_telefone/expTotal)+'% do total</div>' : '')
+    + '</div>'
+    + '<div class="metrica"><div class="rot">✉️ Com e-mail</div>'
+    + '<div class="num">'+numero(d.com_email)+'</div>'
+    + (expTotal ? '<div class="pe">'
+        + Math.round(100*d.com_email/expTotal)+'% do total</div>' : '')
+    + '</div>'
+    + '<div class="metrica"><div class="rot">⚡ Engenheiros</div>'
+    + '<div class="num">'+numero(d.engenheiros)+'</div>'
+    + (expTotal ? '<div class="pe">'
+        + Math.round(100*d.engenheiros/expTotal)+'% do total</div>' : '')
+    + '</div>'
+    + '</div>'
+
+    + (expTotal
+        ? '<button class="btn principal" onclick="baixarCsv()" id="bt-baixar">'
+          + '📤 Baixar planilha com '+numero(expTotal)+' leads</button>'
+        : '<div class="alerta-caixa">Nenhum lead com esses filtros.</div>')
+
+    + '<div id="exp-resultado" style="margin-top:12px"></div>';
+}
+
+/**
+ * Baixa o arquivo.
+ *
+ * O CSV vem montado do servidor: o escape de vírgula e aspas fica num
+ * lugar só, e um nome como "Silva, João" não quebra as colunas.
+ */
+async function baixarCsv(){
+  var b = document.getElementById('bt-baixar');
+  var res = document.getElementById('exp-resultado');
+  if(b){ b.disabled = true; b.textContent = 'Preparando…'; }
+
+  try{
+    var r = await fetch(API + '/api/exportar-csv', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
+      body: JSON.stringify(expFiltros())
+    });
+
+    if(!r.ok){
+      var erro = await r.json().catch(function(){ return {}; });
+      throw new Error(erro.erro || ('falhou: ' + r.status));
+    }
+
+    var texto = await r.text();
+    var quantos = r.headers.get('x-total-leads') || expTotal;
+
+    // o navegador baixa a partir de um endereço temporário na memória
+    var blob = new Blob([texto], { type: 'text/csv;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArquivoCsv();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+
+    if(res) res.innerHTML = '<div class="alerta-caixa">✅ '
+      + numero(quantos)+' leads na planilha <b>'+esc(nomeArquivoCsv())+'</b></div>';
+
+  }catch(e){
+    if(res) res.innerHTML = '<div class="alerta-caixa perigo">'+esc(e.message)+'</div>';
+  }
+
+  if(b){
+    b.disabled = false;
+    b.textContent = '📤 Baixar planilha com '+numero(expTotal)+' leads';
+  }
+}
+
+/** Nome que diz o que tem dentro, para não virar "leads(3).csv". */
+function nomeArquivoCsv(){
+  var marcados = expMarcados();
+  var parte = marcados.length === 1
+    ? marcados[0]
+    : (marcados.length ? marcados.length + '-lancamentos' : 'todos');
+
+  var compra = expCompraSel === 'sim' ? '-compradores'
+             : expCompraSel === 'nao' ? '-nao-compradores' : '';
+
+  var resp = expRespSel();
+  var perfil = resp.length === 1 ? '-' + resp[0] : '';
+
+  var hoje = new Date();
+  var dia = hoje.getFullYear()
+    + String(hoje.getMonth()+1).padStart(2,'0')
+    + String(hoje.getDate()).padStart(2,'0');
+
+  return 'leads-' + parte + compra + perfil + '-' + dia + '.csv';
+}
 
 // ================= PERÍODO DA TELA DE ANÚNCIOS =================
 //
