@@ -2727,24 +2727,39 @@ async function abrirTutorialConector(){
     return;
   }
 
+  // As perguntas cobrem as cinco áreas de propósito: é assim que o Luis
+  // descobre que o conector faz mais do que conteúdo.
   var perguntas = [
+    ['Como está o lançamento hoje? Me dá o resumo e o que precisa de atenção',
+     'lançamento'],
+    ['Qual criativo está gastando sem trazer lead? Quero pausar hoje',
+     'tráfego'],
+    ['Abre o criativo que mais traz engenheiro e me mostra conjunto por conjunto',
+     'conjuntos'],
+    ['O CPL subiu nos últimos dias? Me mostra dia a dia e onde virou',
+     'tendência'],
+    ['Quem é a minha base neste lançamento? Formação, cargo, o perfil todo',
+     'leads'],
+    ['Do lead capturado até o grupo, onde estou perdendo mais gente?', 'funil'],
     ['Analisa meus últimos 30 dias de conteúdo e me diz o que está funcionando',
-     'análise'],
+     'conteúdo'],
     ['Que formato rende mais salvamentos: Reels, Feed ou Stories?', 'formato'],
-    ['Quais foram meus 5 melhores posts e o que eles têm em comum?', 'padrão'],
     ['Com base no que funcionou, me sugere 5 conteúdos para a próxima semana',
      'próximos'],
-    ['Como está o lançamento e qual criativo do pago traz mais engenheiro?',
-     'lançamento'],
-    ['O conteúdo que mais engaja é o mesmo que traz lead que compra?', 'cruzamento']
+    ['Este lançamento está melhor ou pior que o anterior? Compara tudo',
+     'histórico'],
+    ['O conteúdo que mais engaja é o mesmo que traz lead que compra?',
+     'cruzamento'],
+    ['Tem alguma integração falhando e me custando lead?', 'saúde']
   ];
 
   document.getElementById('modal-int').innerHTML =
     '<h2 style="font-size:19px;font-weight:600;margin-bottom:4px">'
     + '🤖 Usar a dash no Claude</h2>'
     + '<p style="font-size:13px;color:var(--texto-2);margin-bottom:22px;'
-    + 'line-height:1.55">Depois de ligar uma vez, o Claude consulta a dash '
-    + 'sozinho — sem exportar planilha nem colar dados.</p>'
+    + 'line-height:1.55">Depois de ligar uma vez, o Claude lê a dash '
+    + 'inteira sozinho — tráfego, leads, vendas, aulas e conteúdo. '
+    + 'Sem exportar planilha nem colar dados.</p>'
 
     // ---- passo 1
     + '<div class="tut-passo">'
@@ -2788,9 +2803,15 @@ async function abrirTutorialConector(){
     + '<div class="int-rotulo" style="margin-top:6px">O que o Claude consegue ler</div>'
     + '<div style="font-size:12.5px;color:var(--texto-2);line-height:1.6;'
     + 'margin-bottom:6px">'
-    + (d.ferramentas || []).map(function(f){
-        return '• ' + esc(f.resumo);
-      }).join('<br>')
+    + (d.areas || []).map(function(g){
+        return '<div style="margin-bottom:9px">'
+          + '<b style="color:var(--texto-1);text-transform:capitalize">'
+          + esc(g.area)+'</b><br>'
+          + (g.ferramentas || []).map(function(f){
+              return '• ' + esc(f.resumo);
+            }).join('<br>')
+          + '</div>';
+      }).join('')
     + '</div>'
     + '<div class="nota-tabela" style="margin-top:10px">'
     + 'O Claude só <b>lê</b> — nada que ele faça altera a dash. Os números '
