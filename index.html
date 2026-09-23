@@ -314,6 +314,26 @@ tbody tr:hover{background:var(--fundo)}
 .passo-txt{font-size:13.5px;line-height:1.55;padding-top:3px}
 .reat-filtros{display:flex;flex-direction:column;gap:10px}
 .exp-radio{display:flex;gap:6px;flex-wrap:wrap}
+.ig-cabeca{
+  display:flex;gap:16px;align-items:center;flex-wrap:wrap;
+  padding:14px 16px;margin-bottom:16px;border-radius:12px;
+  background:linear-gradient(90deg,rgba(212,163,63,.10),transparent);
+  border:1px solid var(--borda);
+}
+.ig-seguidores{
+  padding-right:16px;border-right:1px solid var(--borda);flex-shrink:0;
+}
+.ig-seguidores .n{
+  font-family:var(--mono);font-size:27px;line-height:1.1;
+  color:var(--destaque);font-weight:600;
+}
+.ig-seguidores .r{
+  font-size:11px;color:var(--texto-3);text-transform:uppercase;
+  letter-spacing:.06em;margin-top:2px;
+}
+@media(max-width:560px){
+  .ig-seguidores{border-right:0;padding-right:0;width:100%}
+}
 .ig-post{
   display:flex;gap:13px;align-items:flex-start;padding:13px 0;
   border-bottom:1px solid var(--borda);
@@ -2687,18 +2707,26 @@ async function carregarConteudo(){
   document.getElementById('painel-ig-analise').style.display = '';
 
   alvoC.innerHTML =
-    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;'
-    + 'margin-bottom:14px;font-size:13px">'
-    + '<b>@'+esc(c.username || '')+'</b>'
-    + (c.seguidores ? '<span style="color:var(--texto-3)">'
-        + numero(c.seguidores)+' seguidores</span>' : '')
+    '<div class="ig-cabeca">'
+    + (c.seguidores
+        ? '<div class="ig-seguidores">'
+          + '<div class="n">'+numero(c.seguidores)+'</div>'
+          + '<div class="r">seguidores</div></div>'
+        : '')
+    + '<div style="flex:1;min-width:0">'
+    + '<div style="font-size:14.5px;font-weight:600">@'+esc(c.username || '')+'</div>'
+    + (c.nome
+        ? '<div style="font-size:12.5px;color:var(--texto-3);margin-top:2px">'
+          + esc(c.nome)+'</div>' : '')
+    + '</div>'
     + '<button class="mini" onclick="igBuscarContas()">trocar conta</button>'
     + '<div id="ig-escolher" style="width:100%"></div>'
     + '</div>';
 
   var quando = document.getElementById('ig-quando');
   if(quando && c.atualizado_em){
-    quando.textContent = 'números de ' + dataCurta(c.atualizado_em);
+    quando.textContent = 'números de ' + dataCurta(c.atualizado_em)
+      + ' · atualiza sozinho às 12h e 20h';
   }
 
   // ---- o resumo
