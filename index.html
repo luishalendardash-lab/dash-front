@@ -6720,6 +6720,15 @@ function desenharRecLista(){
           + '</div>'
           + '<div class="sub">' + esc(p.email || 'sem e-mail')
           + (temZap ? ' · ' + esc(p.telefone)
+                      // De onde veio o número. "checkout" é o que a
+                      // pessoa digitou na compra, sem normalizar, e
+                      // "numero antigo" é o que ela trocou — nos dois
+                      // o time precisa saber antes de estranhar.
+                      + (p.telefone_fonte && p.telefone_fonte !== 'cadastro'
+                          ? ' <span class="pilula" style="font-size:10px" '
+                            + 'title="de onde a dash tirou este numero">'
+                            + esc(p.telefone_fonte) + '</span>'
+                          : '')
                     : ' · <b>sem telefone</b>') + '</div>'
           + (p.comprou_outro
               ? '<div class="sub" style="color:var(--destaque)">'
