@@ -1621,15 +1621,6 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
         <div id="rec-tmb"></div>
       </section>
 
-      <section class="painel">
-        <div class="painel-topo">
-          <div class="painel-titulo"><span class="emoji">🏦</span>
-            Financiamento — clicou e não começou</div>
-          <button class="btn" onclick="carregarCliquesFinanciamento()">
-            Atualizar</button>
-        </div>
-        <div id="rec-financiamento"></div>
-      </section>
 
      </div>
 
@@ -1653,7 +1644,7 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
         <div class="painel-topo">
           <div class="painel-titulo"><span class="emoji">👥</span> Leads</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <input id="busca-lead" placeholder="Buscar por e-mail" style="width:220px;padding:8px 11px;font-size:13.5px"
+            <input id="busca-lead" placeholder="E-mail, nome ou telefone" style="width:220px;padding:8px 11px;font-size:13.5px"
                    onkeydown="if(event.key==='Enter')carregarLeads()">
             <button class="btn" onclick="carregarLeads()">Buscar</button>
           </div>
@@ -1927,7 +1918,7 @@ function trocarLancamento(){
   }
   else if(telaAtual === 'recuperacao'){
     carregarRecuperacao(); carregarMensagensRec();
-    carregarTmbCheckout(); carregarCliquesFinanciamento();
+    carregarTmbCheckout();
   }
   else if(telaAtual === 'faturamento') carregarFaturamento();
   else if(telaAtual === 'aulas') carregarAulas();
@@ -2167,7 +2158,7 @@ function irPara(tela, el){
   }
   if(tela === 'recuperacao'){
     carregarRecuperacao(); carregarMensagensRec();
-    carregarTmbCheckout(); carregarCliquesFinanciamento();
+    carregarTmbCheckout();
   }
   if(tela === 'faturamento') carregarFaturamento();
   if(tela === 'integracoes'){ carregarIntegracoes(); carregarEventosMeta(); }
@@ -7374,139 +7365,6 @@ function abrirBoletoTmb(i){
   window.open(p.url_boleto, '_blank');
 }
 
-// ---------------------------------------------------------------------
-// FINANCIAMENTO: QUEM CLICOU E NÃO COMEÇOU
-//
-// A TMB só cria pedido quando a pessoa termina o cadastro. Quem clicou
-// e desistiu antes disso não existe em nenhuma API dela — a única forma
-// de saber é a dash contar o clique.
-//
-// Por isso o link precisa passar pelo /r/tmb da dash. Com o link da TMB
-// direto, esta lista fica vazia para sempre.
-// ---------------------------------------------------------------------
-async function carregarCliquesFinanciamento(){
-  var alvo = document.getElementById('rec-financiamento');
-  if(!alvo) return;
-
-  alvo.innerHTML = '<div class="carregando">Carregando…</div>';
-
-  var d;
-  try{ d = await api('/api/financiamento-cliques?lancamento='
-                     + encodeURIComponent(lancamentoAtual)); }
-  catch(e){
-    alvo.innerHTML = '<div class="alerta-caixa perigo">' + esc(e.message)
-      + '</div>';
-    return;
-  }
-
-  if(!d.ok){
-    alvo.innerHTML = '<div class="alerta-caixa perigo">'
-      + esc(d.erro || 'falhou') + '</div>';
-    return;
-  }
-
-  var r = d.resumo || {};
-  var lista = d.lista || [];
-
-  alvo.innerHTML =
-    // ---- o link rastreado, que é o que faz isto funcionar
-    '<div class="tut-passo" style="margin-bottom:16px">'
-    + '<div class="tut-num">1</div><div class="tut-corpo">'
-    + '<h4>Use este link no lugar do link da TMB</h4>'
-    + '<p>Em qualquer lugar onde você manda a pessoa para o '
-    + 'financiamento — WhatsApp, e-mail, página. O visitante vai para a '
-    + 'TMB do mesmo jeito; a dash só registra a passagem.</p>'
-    + '<div class="tut-link"><code id="rec-link-tmb">'
-    + esc(API + '/r/tmb/{id_da_inscricao}') + '</code>'
-    + '<button class="mini" onclick="copiarLinkTmb()">Copiar</button></div>'
-    + '<p style="font-size:12px;color:var(--texto-3)">Sem o id, o link '
-    + 'funciona e leva para a TMB, mas a dash não sabe quem passou. '
-    + 'Os disparos do SellFlux podem preencher o id automaticamente.</p>'
-    + '</div></div>'
-
-    + '<div class="tut-passo" style="margin-bottom:16px">'
-    + '<div class="tut-num">2</div><div class="tut-corpo">'
-    + '<h4>Para onde ele leva</h4>'
-    + '<p>O endereço da TMB deste lançamento:</p>'
-    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    + '<input class="campo" id="rec-url-tmb" style="flex:1;min-width:240px" '
-    + 'placeholder="tmbeducacao.com.br/..." value="'
-    + esc(d.link_atual || '') + '">'
-    + '<button class="btn" onclick="salvarLinkTmb()">Salvar</button>'
-    + '</div><div id="rec-url-res" style="margin-top:8px"></div>'
-    + '</div></div>'
-
-    + '<div class="metricas" style="margin-bottom:14px">'
-    + [['👆 Clicaram no link', numero(r.clicaram), ''],
-       ['📝 Começaram o cadastro', numero(r.comecaram_cadastro),
-        'têm pedido na TMB'],
-       ['🚪 Clicaram e não começaram', numero(r.nao_comecaram),
-        numero(r.com_telefone) + ' com WhatsApp']]
-      .map(function(x){
-        return '<div class="metrica"><div class="rot">' + x[0] + '</div>'
-          + '<div class="num">' + x[1] + '</div>'
-          + (x[2] ? '<div class="pe">' + x[2] + '</div>' : '') + '</div>';
-      }).join('')
-    + '</div>'
-
-    + (lista.length
-        ? '<div class="rolagem"><table><thead><tr>'
-          + '<th>Pessoa</th><th class="num-td">Cliques</th>'
-          + '<th class="num-td">Último clique</th>'
-          + '</tr></thead><tbody>'
-          + lista.map(function(p){
-              return '<tr>'
-                + '<td><div style="font-weight:500">'
-                + esc(p.nome || p.email || '—')
-                + (p.engenheiro
-                    ? ' <span class="pilula" style="font-size:10px">eng</span>'
-                    : '')
-                + '</div><div class="sub">' + esc(p.email || '')
-                + (p.telefone ? ' · ' + esc(p.telefone) : '')
-                + '</div></td>'
-                + '<td class="num-td">' + numero(p.cliques) + '</td>'
-                + '<td class="num-td">'
-                + (p.dias === 0 ? 'hoje'
-                   : p.dias + (p.dias === 1 ? ' dia' : ' dias')) + '</td>'
-                + '</tr>';
-            }).join('')
-          + '</tbody></table></div>'
-        : '<div class="alerta-caixa">Ninguém clicou no link rastreado ainda. '
-          + 'Se você está usando o link da TMB direto, esta lista fica '
-          + 'vazia — troque pelo link de cima.</div>')
-
-    + '<div class="nota-tabela">' + esc(d.como_funciona || '') + '</div>';
-}
-
-function copiarLinkTmb(){
-  var el = document.getElementById('rec-link-tmb');
-  if(!el) return;
-  navigator.clipboard.writeText(el.textContent)
-    .then(function(){ mostrarToast('Link copiado'); })
-    .catch(function(){ mostrarToast('Não deu para copiar'); });
-}
-
-async function salvarLinkTmb(){
-  var v = (document.getElementById('rec-url-tmb').value || '').trim();
-  var res = document.getElementById('rec-url-res');
-
-  try{
-    var r = await fetch(API + '/api/link-financiamento?lancamento='
-                        + encodeURIComponent(lancamentoAtual), {
-      method:'POST',
-      headers:{'Content-Type':'application/json',
-               Authorization:'Bearer ' + sessao.token},
-      body: JSON.stringify({ url: v })
-    });
-    var d = await r.json();
-    res.innerHTML = d.ok
-      ? '<div class="alerta-caixa">✅ Salvo.</div>'
-      : '<div class="alerta-caixa perigo">' + esc(d.erro || 'falhou') + '</div>';
-  }catch(e){
-    res.innerHTML = '<div class="alerta-caixa perigo">' + esc(e.message)
-      + '</div>';
-  }
-}
 
 
 /**
@@ -10686,18 +10544,43 @@ async function carregarLeads(){
 
   var linhas = d.dados || [];
   if(!linhas.length){
-    alvo.innerHTML = '<div class="vazio">Nenhum lead aqui ainda.</div>';
+    alvo.innerHTML = '<div class="vazio">'
+      + (d.busca
+          ? 'Nenhum lead com “' + esc(d.busca) + '”. A busca olha e-mail, '
+            + 'nome e telefone.<br><br>'
+            + '<button class="mini" onclick="limparBuscaLead()">'
+            + 'Limpar busca</button>'
+          : 'Nenhum lead aqui ainda.')
+      + '</div>';
     return;
   }
 
-  alvo.innerHTML = '<div class="rolagem"><table><thead><tr>'
+  alvo.innerHTML =
+    // Sem isto, quem busca não sabe se achou 3 ou 300 — a tela mostra
+    // no máximo 50 por página e não dizia que havia mais.
+    (d.busca
+      ? '<div class="nota-tabela" style="margin-bottom:12px">'
+        + numero(d.encontrados) + ' lead(s) com “' + esc(d.busca) + '”'
+        + (Number(d.encontrados) > linhas.length
+            ? ' — mostrando os ' + linhas.length + ' primeiros' : '')
+        + ' · <button class="mini" onclick="limparBuscaLead()">'
+        + 'Limpar busca</button></div>'
+      : '')
+    + '<div class="rolagem"><table><thead><tr>'
     + '<th>Lead</th><th>Etapa</th><th class="num-td">Score</th>'
     + '<th>Campanha</th><th>Criativo</th><th class="num-td">Entrou</th>'
     + '</tr></thead><tbody>'
     + linhas.map(function(l){
         var p = l.pessoas || {};
+        // "sem cadastro" e não "—": lead sem pessoa ligada é um caso
+        // real (checkout que chegou antes da captação) e precisa ser
+        // distinguível de bug. Foi um "—" silencioso assim que escondeu
+        // a busca quebrada.
         return '<tr onclick="abrirLead(\''+l.id+'\')">'
-          + '<td><div style="font-weight:500">'+(p.nome||'—')
+          + '<td><div style="font-weight:500">'
+          + (p.nome || (p.email || p.telefone
+              ? '(sem nome)' : '<span style="color:var(--texto-3)">'
+                + 'sem cadastro ligado</span>'))
           + (l.engenheiro ? ' <span class="pilula" style="color:var(--destaque)">engenheiro</span>' : '')
           + '</div><div style="font-size:12px;color:var(--texto-3)">'+(p.email||p.telefone||'')+'</div></td>'
           + '<td><span class="pilula">'+(ROTULO_ETAPA[l.etapa]||l.etapa)+'</span></td>'
@@ -10708,6 +10591,12 @@ async function carregarLeads(){
           + '</tr>';
       }).join('')
     + '</tbody></table></div>';
+}
+
+function limparBuscaLead(){
+  var el = document.getElementById('busca-lead');
+  if(el) el.value = '';
+  carregarLeads();
 }
 
 function dataCurta(iso){
