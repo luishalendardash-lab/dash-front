@@ -6505,6 +6505,7 @@ async function salvarContasMeta(){
 var recDados = null;
 var recMotivos = [];       // motivos marcados no filtro
 var recPlataforma = '';
+var recProduto = '';
 var recSoTelefone = false;
 var recTudo = true;
 var recAbertas = {};       // linhas expandidas
@@ -6521,6 +6522,7 @@ async function carregarRecuperacao(){
     + '&tudo=' + (recTudo ? 'true' : 'false')
     + (recMotivos.length ? '&motivos=' + encodeURIComponent(recMotivos.join(',')) : '')
     + (recPlataforma ? '&plataformas=' + encodeURIComponent(recPlataforma) : '')
+    + (recProduto ? '&produtos=' + encodeURIComponent(recProduto) : '')
     + (recSoTelefone ? '&so_com_telefone=true' : '');
 
   var d;
@@ -6610,6 +6612,22 @@ function desenharRecMotivos(){
     + '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;'
     + 'margin-bottom:14px">'
 
+    // O produto vem primeiro porque é o corte mais grosso: o time
+    // trabalha um produto por vez, com oferta e preço próprios.
+    + ((op.produtos || []).length > 1
+        ? '<select class="campo" style="width:auto" '
+          + 'onchange="recTrocarProduto(this.value)">'
+          + '<option value=""' + (recProduto ? '' : ' selected') + '>'
+          + 'Todos os produtos</option>'
+          + (op.produtos || []).map(function(x){
+              return '<option value="' + esc(x.valor) + '"'
+                + (recProduto === x.valor ? ' selected' : '') + '>'
+                + esc(x.rotulo) + ' (' + numero(x.quantos) + ' · '
+                + moeda(x.valor_aberto) + ')</option>';
+            }).join('')
+          + '</select>'
+        : '')
+
     + '<select class="campo" style="width:auto" onchange="recTrocarPlataforma(this.value)">'
     + '<option value=""' + (recPlataforma ? '' : ' selected') + '>'
     + 'Todas as plataformas</option>'
@@ -6634,11 +6652,21 @@ function desenharRecMotivos(){
     + ' onchange="recTudo=!this.checked;carregarRecuperacao()">'
     + 'Só o período do carrinho</label>'
 
-    + (recMotivos.length
-        ? '<button class="mini" onclick="recMotivos=[];carregarRecuperacao()">'
-          + 'Limpar filtro de motivo</button>'
+    + (recMotivos.length || recProduto || recPlataforma || recSoTelefone
+        ? '<button class="mini" onclick="limparFiltrosRec()">'
+          + 'Limpar filtros</button>'
         : '')
     + '</div>'
+
+    // Com filtro ligado, o total de cima é do lançamento inteiro e a
+    // lista é só um pedaço. Dizer isso evita o cliente comparar os dois
+    // e achar que a dash errou a conta.
+    + (recProduto || recPlataforma || recMotivos.length || recSoTelefone
+        ? '<div class="nota-tabela" style="margin-bottom:14px">'
+          + 'Filtro ligado: a lista abaixo é um pedaço. Os cartões do '
+          + 'topo e a tabela de motivos continuam somando o lançamento '
+          + 'inteiro.</div>'
+        : '')
 
     // ---- o que fazer em cada caso, para a tela não ser só uma lista
     + '<div class="rolagem"><table><thead><tr>'
@@ -6667,6 +6695,14 @@ function desenharRecMotivos(){
     + '</tbody></table></div>';
 }
 
+function limparFiltrosRec(){
+  recMotivos = [];
+  recProduto = '';
+  recPlataforma = '';
+  recSoTelefone = false;
+  carregarRecuperacao();
+}
+
 function alternarMotivo(m){
   var i = recMotivos.indexOf(m);
   if(i >= 0) recMotivos.splice(i, 1); else recMotivos.push(m);
@@ -6678,13 +6714,18 @@ function recTrocarPlataforma(v){
   carregarRecuperacao();
 }
 
+function recTrocarProduto(v){
+  recProduto = v;
+  carregarRecuperacao();
+}
+
 function desenharRecLista(){
   var lista = recDados.lista || [];
   var alvo = document.getElementById('rec-lista');
 
   if(!lista.length){
     alvo.innerHTML = '<div class="alerta-caixa">'
-      + (recMotivos.length || recPlataforma || recSoTelefone
+      + (recMotivos.length || recPlataforma || recProduto || recSoTelefone
           ? 'Nenhuma pessoa com esses filtros.'
           : 'Nada em aberto.')
       + '</div>';
@@ -6747,7 +6788,10 @@ function desenharRecLista(){
               : '')
           + '</td>'
 
-          + '<td class="num-td">' + moeda(p.valor) + '</td>'
+          + '<td class="num-td">' + moeda(p.valor)
+          + (!recProduto && p.produto && p.produto !== '(sem produto)'
+              ? '<div class="sub">' + esc(p.produto) + '</div>' : '')
+          + '</td>'
           + '<td><span class="pilula">' + esc(p.plataforma) + '</span></td>'
           + '<td class="num-td"'
           + (p.dias >= 3 ? ' style="color:var(--destaque)"' : '') + '>'
