@@ -665,6 +665,114 @@ tr.queimando td:first-child{box-shadow:inset 3px 0 0 #C4571F}
   font-size:11.5px;cursor:pointer;transition:border-color .15s;
 }
 .var-chip:hover{border-color:var(--destaque);color:var(--destaque)}
+/* ---- Entregas (iscas): certificado e material ----
+   A parte incomum é o palco: a arte do certificado com os textos por
+   cima, arrastáveis. O tamanho dos textos é em `cqh` — porcentagem da
+   altura do container — que é a mesma unidade que o gerador de PDF usa.
+   Com isso a prévia mostra o tamanho real, e não uma aproximação que
+   engana na hora de conferir. */
+.cert-palco{
+  position:relative;width:100%;aspect-ratio:1.414;
+  container-type:size;
+  background:#fff;background-size:cover;background-position:center;
+  border:1px solid var(--borda-forte);border-radius:var(--raio-p);
+  overflow:hidden;user-select:none;touch-action:none;
+}
+.cert-vazio{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:6px;text-align:center;
+  padding:22px;color:var(--texto-2);font-size:13.5px;line-height:1.55;
+  background:var(--fundo);
+}
+.cert-txt{
+  position:absolute;transform:translate(-50%,-50%);
+  white-space:nowrap;cursor:grab;padding:2px 5px;border-radius:4px;
+  line-height:1.1;
+  /* Arial/Helvetica de propósito, e não a fonte da dash: é a fonte que
+     o gerador de PDF usa, e as larguras das letras são as mesmas. Com a
+     fonte da dash aqui, um nome que couber na prévia poderia estourar
+     no PDF, ou o contrário. */
+  font-family:Helvetica,Arial,sans-serif;
+}
+.cert-txt:hover{outline:1px dashed rgba(120,120,120,.55)}
+.cert-txt.sel{
+  outline:2px solid var(--destaque);
+  box-shadow:0 0 0 4px var(--destaque-bg);
+}
+.cert-txt:active{cursor:grabbing}
+
+.isca-secao{
+  font-size:11px;color:var(--texto-3);text-transform:uppercase;
+  letter-spacing:.08em;margin-bottom:12px;font-weight:600;
+}
+.isca-dica{
+  font-size:12px;color:var(--texto-3);line-height:1.55;margin-top:10px;
+}
+.isca-area{
+  width:100%;padding:11px 13px;background:var(--fundo);
+  border:1px solid var(--borda-forte);border-radius:var(--raio-p);
+  color:var(--texto);font-family:var(--sans);font-size:14px;resize:vertical;
+}
+.isca-falta{
+  font-size:12.5px;color:var(--destaque);margin-top:9px;
+  line-height:1.5;display:none;
+}
+.isca-falta.on{display:block}
+
+.isca-opcoes{
+  display:flex;flex-direction:column;gap:7px;
+  padding-left:12px;border-left:2px solid var(--borda);
+}
+.isca-op-linha{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+
+/* ---- o resumo das respostas: a razão de a isca existir ---- */
+.isca-resumo{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:14px;margin-bottom:20px;
+}
+.isca-grupo{
+  background:var(--fundo);border:1px solid var(--borda);
+  border-radius:var(--raio-p);padding:14px;
+}
+.isca-grupo-tit{
+  font-size:13px;font-weight:600;margin-bottom:12px;line-height:1.4;
+}
+.isca-grupo-tit span{
+  font-weight:400;color:var(--texto-3);font-size:11.5px;
+}
+.isca-barra-linha{
+  display:flex;align-items:center;gap:9px;margin-bottom:7px;font-size:12.5px;
+}
+.isca-barra-rot{
+  flex:0 0 38%;color:var(--texto-2);line-height:1.3;
+  overflow:hidden;text-overflow:ellipsis;
+}
+.isca-barra{
+  flex:1;height:8px;background:var(--borda);border-radius:99px;overflow:hidden;
+}
+.isca-barra-i{height:100%;background:var(--destaque);border-radius:99px}
+.isca-barra-num{
+  flex:none;font-variant-numeric:tabular-nums;font-weight:600;min-width:52px;
+  text-align:right;
+}
+.isca-barra-num span{font-weight:400;color:var(--texto-3);font-size:11px}
+
+.isca-textos{display:flex;flex-direction:column;gap:6px;max-height:280px;overflow:auto}
+.isca-texto-item{
+  font-size:12.5px;color:var(--texto-2);line-height:1.45;
+  padding:8px 10px;background:var(--vidro-solido);border-radius:7px;
+}
+
+.isca-td-resp{max-width:340px}
+.isca-resp{font-size:12px;line-height:1.45;margin-bottom:3px}
+.isca-resp span{color:var(--texto-3)}
+.isca-acoes{display:flex;gap:6px;flex-wrap:wrap}
+
+@media (max-width:760px){
+  .isca-resumo{grid-template-columns:1fr}
+  .isca-barra-rot{flex:0 0 44%}
+  .cert-palco{aspect-ratio:1.414}
+}
 .rolagem{
   overflow-x:auto;
   /* sem largura máxima, a tabela empurra o painel e o painel empurra a
@@ -1624,6 +1732,205 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
 
      </div>
 
+     <div class="tela" id="tela-iscas">
+
+      <!-- ============ A ISCA ============ -->
+      <section class="painel">
+        <div class="painel-topo">
+          <div class="painel-titulo"><span class="emoji">🎁</span>
+            Entregas (certificado, slides)</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="isca-qual" onchange="trocarIsca(this.value)"
+                    style="min-width:190px"></select>
+            <button class="btn" onclick="novaIsca()">+ Nova entrega</button>
+            <button class="btn principal" id="btn-salvar-isca"
+                    onclick="salvarIsca()">Salvar</button>
+          </div>
+        </div>
+
+        <div class="aviso" id="aviso-isca"></div>
+
+        <!-- o link para divulgar -->
+        <div class="q-card" id="isca-link-card"
+             style="margin-bottom:20px;border-color:var(--destaque);display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;
+                      gap:12px;flex-wrap:wrap;margin-bottom:10px">
+            <div style="font-size:11px;color:var(--destaque);text-transform:uppercase;
+                        letter-spacing:.08em;font-weight:600">🔗 Link para divulgar</div>
+            <div style="display:flex;gap:8px">
+              <button class="mini" onclick="copiarLinkIsca()"
+                      id="btn-copiar-isca">Copiar</button>
+              <button class="mini" onclick="abrirLinkIsca()">Abrir</button>
+            </div>
+          </div>
+          <input id="isca-link" readonly onclick="this.select()"
+                 style="font-family:var(--mono);font-size:12.5px">
+          <div class="isca-falta" id="isca-falta"></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+                    gap:12px;margin-bottom:18px">
+          <div class="campo" style="margin:0"><label>Nome da entrega</label>
+            <input id="isca-nome" placeholder="Certificado de Participação"
+                   oninput="marcarIscaMudou()"></div>
+          <div class="campo" style="margin:0"><label>O que o lead recebe</label>
+            <select id="isca-tipo" onchange="trocarTipoIsca()">
+              <option value="certificado">Certificado com o nome dele</option>
+              <option value="arquivo">Um arquivo igual para todos</option>
+            </select></div>
+          <div class="campo" style="margin:0"><label>Situação</label>
+            <select id="isca-ativa" onchange="marcarIscaMudou()">
+              <option value="1">Aberta — pode preencher</option>
+              <option value="0">Fechada</option>
+            </select></div>
+        </div>
+
+        <div class="q-card" style="margin-bottom:18px">
+          <div class="isca-secao">Tela de abertura do formulário</div>
+          <div class="campo"><input id="isca-intro-titulo" oninput="marcarIscaMudou()"
+               placeholder="Título — ex: Pegue seu certificado"></div>
+          <div class="campo"><textarea id="isca-intro-texto" rows="2"
+               oninput="marcarIscaMudou()" class="isca-area"
+               placeholder="Texto antes das perguntas"></textarea></div>
+          <div class="campo" style="margin-bottom:0"><input id="isca-intro-botao"
+               oninput="marcarIscaMudou()"
+               placeholder="Texto do botão — ex: Quero receber"></div>
+        </div>
+
+        <!-- ---- arquivo igual para todos ---- -->
+        <div class="q-card" id="isca-bloco-arquivo"
+             style="margin-bottom:18px;display:none">
+          <div class="isca-secao">O arquivo que todos vão baixar</div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <input type="file" id="isca-arq" accept=".pdf,.zip,.pptx,.ppt"
+                   onchange="subirArqIsca()" style="flex:1;min-width:200px">
+            <span id="isca-arq-status" style="font-size:12.5px;color:var(--texto-3)"></span>
+          </div>
+          <div class="campo" style="margin:12px 0 0"><label>Nome do arquivo no download
+            <span style="font-weight:400;color:var(--texto-3)">(opcional)</span></label>
+            <input id="isca-arq-nome" oninput="marcarIscaMudou()"
+                   placeholder="slides-aula-1.pdf"></div>
+          <div class="isca-dica">PDF, ZIP ou PPTX, até 40 MB.</div>
+        </div>
+
+        <!-- ---- certificado ---- -->
+        <div id="isca-bloco-cert" style="display:none">
+          <div class="q-card" style="margin-bottom:18px">
+            <div class="isca-secao">A arte do certificado</div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <input type="file" id="isca-fundo" accept="image/*"
+                     onchange="subirFundoIsca()" style="flex:1;min-width:200px">
+              <span id="isca-fundo-status"
+                    style="font-size:12.5px;color:var(--texto-3)"></span>
+            </div>
+            <div class="isca-dica">
+              Manda a arte sem o nome escrito — o nome entra por cima, aqui.
+              Pode ser PNG ou JPG: a dash converte para JPG antes de subir,
+              que é o formato que o gerador de PDF entende.
+            </div>
+          </div>
+
+          <div class="q-card" style="margin-bottom:18px">
+            <div style="display:flex;justify-content:space-between;
+                        align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+              <div class="isca-secao" style="margin:0">Onde cada texto fica</div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <span style="font-size:12px;color:var(--texto-3)"
+                      id="isca-sel-info">Arraste o texto na imagem</span>
+                <button class="mini" onclick="addLinhaIsca()">+ Linha de texto</button>
+                <button class="mini" onclick="verPreviaCert()">Ver PDF de teste</button>
+              </div>
+            </div>
+
+            <!-- a arte com os textos por cima, arrastáveis -->
+            <div class="cert-palco" id="cert-palco">
+              <div class="cert-vazio" id="cert-vazio">
+                Suba a arte acima para posicionar os textos.<br>
+                <span style="color:var(--texto-3);font-size:12px">Sem arte, o
+                certificado sai com uma moldura simples — dá para testar o
+                fluxo antes de a arte ficar pronta.</span>
+              </div>
+            </div>
+
+            <!-- controles do texto escolhido -->
+            <div id="cert-controles" style="display:none;margin-top:14px">
+              <div style="display:grid;
+                          grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+                          gap:12px;align-items:end">
+                <div class="campo" style="margin:0" id="cert-campo-texto">
+                  <label>Texto</label>
+                  <input id="cert-texto" oninput="mudarTextoSel(this.value)"
+                         placeholder="Use {nome} {data} {evento} {codigo}"></div>
+                <div class="campo" style="margin:0"><label>Tamanho
+                  <span id="cert-tam-val" style="color:var(--texto-3);
+                        font-weight:400"></span></label>
+                  <input type="range" id="cert-tam" min="1" max="12" step="0.1"
+                         oninput="mudarTamSel(this.value)"></div>
+                <div class="campo" style="margin:0"><label>Cor</label>
+                  <input type="color" id="cert-cor" onchange="mudarCorSel(this.value)"
+                         style="height:38px;padding:3px"></div>
+                <div class="campo" style="margin:0"><label>Peso</label>
+                  <select id="cert-negrito" onchange="mudarNegritoSel(this.value)">
+                    <option value="1">Negrito</option>
+                    <option value="0">Normal</option>
+                  </select></div>
+                <div class="campo" style="margin:0" id="cert-campo-remover">
+                  <button class="mini" onclick="removerLinhaSel()"
+                          style="width:100%;height:38px">Remover esta linha</button></div>
+              </div>
+              <div class="isca-dica">
+                {nome} é o nome de quem preencheu. {data} é o dia em que
+                preencheu, escrito por extenso. {evento} e {codigo} também
+                funcionam. O nome do lead encolhe sozinho quando é comprido,
+                para nunca estourar a largura.
+              </div>
+            </div>
+          </div>
+
+          <div class="q-card" style="margin-bottom:18px">
+            <div class="isca-secao">Dados do evento</div>
+            <div style="display:grid;
+                        grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+              <div class="campo" style="margin:0"><label>Nome do evento — o {evento}</label>
+                <input id="isca-evento" oninput="marcarIscaMudou()"
+                       placeholder="Semana do Perito da Elétrica"></div>
+              <div class="campo" style="margin:0"><label>Carga horária</label>
+                <input id="isca-carga" oninput="marcarIscaMudou()"
+                       placeholder="8 horas"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---- as perguntas ---- -->
+        <div class="painel-topo" style="margin-bottom:12px">
+          <div class="isca-secao" style="margin:0">As perguntas do formulário</div>
+          <button class="btn" onclick="addPerguntaIsca()">+ Pergunta</button>
+        </div>
+        <div class="isca-dica" style="margin:-6px 0 14px">
+          É aqui que está o valor da isca: a resposta diz por que a pessoa
+          ainda não comprou. Pergunta de opção vira gráfico; pergunta de
+          texto livre você lê uma por uma.
+        </div>
+        <div id="isca-perguntas"></div>
+
+      </section>
+
+      <!-- ============ QUEM PREENCHEU ============ -->
+      <section class="painel">
+        <div class="painel-topo">
+          <div class="painel-titulo"><span class="emoji">📋</span>
+            Quem preencheu</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span id="isca-contagem" style="font-size:12.5px;color:var(--texto-3)"></span>
+            <button class="btn" onclick="carregarEntregasIsca()">Atualizar</button>
+          </div>
+        </div>
+        <div id="isca-respostas-resumo"></div>
+        <div id="isca-entregas"></div>
+      </section>
+
+     </div>
+
      <div class="tela" id="tela-leads">
       <section class="painel" id="painel-recorrencia" style="display:none">
         <div class="painel-topo">
@@ -1670,6 +1977,7 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
       <button class="nav-item" onclick="irPara('recuperacao',this)"><span class="ico">💸</span> Recuperação</button>
       <div class="nav-titulo">Ferramentas</div>
       <button class="nav-item" onclick="irPara('quiz',this)"><span class="ico">🧩</span> Quiz</button>
+      <button class="nav-item" onclick="irPara('iscas',this)"><span class="ico">🎁</span> Entregas</button>
       <button class="nav-item" onclick="irPara('email',this)"><span class="ico">✉️</span> Gerador de e-mail</button>
       <button class="nav-item" onclick="irPara('reativar',this)"><span class="ico">♻️</span> Reativar leads</button>
       <button class="nav-item" onclick="irPara('exportar',this)"><span class="ico">📤</span> Exportar leads</button>
@@ -2149,6 +2457,7 @@ function irPara(tela, el){
     carregarAnuncios();
   }
   if(tela === 'quiz') carregarQuiz();
+  if(tela === 'iscas') carregarIscas();
   if(tela === 'email') carregarEmail();
   if(tela === 'reativar') carregarReativar();
   if(tela === 'exportar') carregarExportar();
@@ -4145,6 +4454,814 @@ function esc(s){
 
 // ================= QUIZ =================
 var quizPerguntas = [];
+
+/* =====================================================================
+   ENTREGAS (ISCAS)
+
+   Um formulário que entrega algo no fim: certificado com o nome do lead
+   ou um arquivo igual para todos. O cliente cria quantas quiser aqui,
+   escreve as perguntas e posiciona os textos sobre a própria arte.
+
+   O posicionamento é arrastando o texto sobre a imagem, e não digitando
+   coordenadas: as posições são porcentagens da página, e ninguém acerta
+   "x: 50, y: 44" de cabeça.
+   ===================================================================== */
+
+var iscas = [];            // as entregas do lançamento
+var iscaAtual = null;      // a que está aberta na tela
+var iscaPerguntas = [];
+var certLinhas = [];       // as linhas de texto sobre a arte
+var certNome = {};         // o bloco do nome do lead
+var certSel = null;        // qual texto está escolhido: 'nome' ou índice
+var iscaMudou = false;
+
+function marcarIscaMudou(){
+  iscaMudou = true;
+  var b = document.getElementById('btn-salvar-isca');
+  if(b){ b.textContent = 'Salvar'; b.disabled = false; }
+}
+
+function avisoIsca(msg){
+  var a = document.getElementById('aviso-isca');
+  if(!a) return;
+  a.textContent = msg;
+  a.classList.add('on');
+  setTimeout(function(){ a.classList.remove('on'); }, 5000);
+}
+
+async function carregarIscas(){
+  try{
+    var r = await fetch(API + '/api/iscas?lancamento='
+      + encodeURIComponent(lancamentoAtual),
+      { headers:{ Authorization:'Bearer ' + sessao.token } });
+    var d = await r.json();
+    if(!d.ok) return avisoIsca(d.erro || 'não consegui carregar as entregas');
+
+    iscas = d.iscas || [];
+    var sel = document.getElementById('isca-qual');
+    sel.innerHTML = iscas.length
+      ? iscas.map(function(i){
+          return '<option value="'+esc(i.slug)+'">'+esc(i.nome)
+            + (i.ativa ? '' : ' (fechada)')+'</option>';
+        }).join('')
+      : '<option value="">nenhuma entrega criada</option>';
+
+    if(iscas.length){
+      // mantém a que já estava aberta, se ela continua existindo
+      var manter = iscaAtual && iscas.some(function(i){
+        return i.slug === iscaAtual.slug; });
+      sel.value = manter ? iscaAtual.slug : iscas[0].slug;
+      trocarIsca(sel.value);
+    }else{
+      novaIsca();
+    }
+  }catch(e){ avisoIsca('falha de conexão'); }
+}
+
+function novaIsca(){
+  iscaAtual = { slug:'', nome:'', tipo:'certificado', ativa:true,
+                config:{}, intro:{}, arquivo_url:'', arquivo_nome:'' };
+  iscaPerguntas = [];
+  certLinhas = [];
+  certNome = { x:50, y:45, tamanho:6, negrito:true, cor:'#1f2937' };
+  certSel = null;
+  preencherFormIsca();
+  document.getElementById('isca-nome').focus();
+}
+
+function trocarIsca(slug){
+  var i = iscas.filter(function(x){ return x.slug === slug; })[0];
+  if(!i) return;
+  iscaAtual = i;
+  iscaPerguntas = (i.perguntas || []).map(function(p){
+    return {
+      chave: p.chave, enunciado: p.enunciado, tipo: p.tipo || 'opcao',
+      obrigatoria: p.obrigatoria !== false, ajuda: p.ajuda || '',
+      opcoes: (p.opcoes || []).map(function(o){
+        return { valor:o.valor, label:o.label }; })
+    };
+  });
+  var cfg = i.config || {};
+  certLinhas = (cfg.linhas || []).map(function(l){ return Object.assign({}, l); });
+  certNome = Object.assign({ x:50, y:45, tamanho:6, negrito:true,
+                             cor:'#1f2937' }, cfg.nome || {});
+  certSel = null;
+  iscaMudou = false;
+  preencherFormIsca();
+  carregarEntregasIsca();
+}
+
+function preencherFormIsca(){
+  var i = iscaAtual || {};
+  var cfg = i.config || {}, intro = i.intro || {};
+  var v = function(id, valor){
+    var e = document.getElementById(id);
+    if(e) e.value = valor == null ? '' : valor;
+  };
+
+  v('isca-nome', i.nome);
+  v('isca-tipo', i.tipo || 'certificado');
+  v('isca-ativa', i.ativa === false ? '0' : '1');
+  v('isca-intro-titulo', intro.titulo);
+  v('isca-intro-texto', intro.texto);
+  v('isca-intro-botao', intro.botao);
+  v('isca-arq-nome', i.arquivo_nome);
+  v('isca-evento', cfg.evento);
+  v('isca-carga', cfg.carga_horaria);
+
+  document.getElementById('isca-arq-status').textContent =
+    i.arquivo_url ? '✓ arquivo carregado' : '';
+  document.getElementById('isca-fundo-status').textContent =
+    cfg.fundo_url ? '✓ arte carregada' : '';
+
+  // o link só existe depois de salvar, porque o endereço vem do slug
+  var card = document.getElementById('isca-link-card');
+  if(i.slug){
+    card.style.display = '';
+    document.getElementById('isca-link').value = API + '/i/' + i.slug;
+    var falta = document.getElementById('isca-falta');
+    falta.textContent = i.falta
+      ? '⚠ Antes de divulgar: ' + i.falta
+      : '';
+    falta.className = 'isca-falta' + (i.falta ? ' on' : '');
+  }else{
+    card.style.display = 'none';
+  }
+
+  trocarTipoIsca(true);
+  desenharPerguntasIsca();
+  desenharPalco();
+}
+
+function trocarTipoIsca(silencioso){
+  var tipo = document.getElementById('isca-tipo').value;
+  document.getElementById('isca-bloco-arquivo').style.display =
+    tipo === 'arquivo' ? '' : 'none';
+  document.getElementById('isca-bloco-cert').style.display =
+    tipo === 'certificado' ? '' : 'none';
+  if(!silencioso) marcarIscaMudou();
+}
+
+/* -------------------- o palco: a arte com os textos -------------------- */
+
+function desenharPalco(){
+  var palco = document.getElementById('cert-palco');
+  if(!palco) return;
+  var cfg = (iscaAtual && iscaAtual.config) || {};
+  var fundo = cfg.fundo_url || '';
+
+  var vazio = document.getElementById('cert-vazio');
+  if(!fundo){
+    palco.style.backgroundImage = 'none';
+    palco.style.aspectRatio = '1.414';
+    if(vazio) vazio.style.display = '';
+    // Sem arte ainda dá para posicionar: o palco fica em branco, com a
+    // proporção de folha deitada, e o que for arrastado aqui vale
+    // quando a arte chegar.
+  }else{
+    palco.style.backgroundImage = 'url("' + fundo + '")';
+    if(vazio) vazio.style.display = 'none';
+  }
+
+  // limpa só os textos, preservando o aviso de vazio
+  Array.prototype.slice.call(palco.querySelectorAll('.cert-txt'))
+    .forEach(function(e){ e.remove(); });
+
+  certLinhas.forEach(function(l, i){ palco.appendChild(elementoTexto(l, i)); });
+  palco.appendChild(elementoTexto(certNome, 'nome'));
+  encolherNaPrevia();
+  atualizarControles();
+}
+
+/**
+ * Encolhe o texto que não cabe, como o gerador de PDF faz.
+ *
+ * Sem isto a prévia mostrava o nome estourando a folha enquanto o PDF
+ * saía certinho — e o cliente ficaria diminuindo um tamanho que já
+ * estava bom.
+ */
+function encolherNaPrevia(){
+  var palco = document.getElementById('cert-palco');
+  if(!palco) return;
+  var larguraPalco = palco.clientWidth;
+  if(!larguraPalco) return;
+
+  Array.prototype.slice.call(palco.querySelectorAll('.cert-txt'))
+    .forEach(function(el){
+      var pct = Number(el.dataset.max || 84);
+      var limite = (pct / 100) * larguraPalco;
+      // guarda o tamanho pedido, para não encolher em cima de encolhido
+      // a cada redesenho
+      var base = Number(String(el.style.fontSize).replace('cqh', '')) || 3;
+      var t = base;
+      el.style.fontSize = t + 'cqh';
+      var voltas = 0;
+      while(el.scrollWidth > limite && t > 0.6 && voltas < 60){
+        t -= base / 40;
+        el.style.fontSize = t + 'cqh';
+        voltas++;
+      }
+    });
+}
+
+function elementoTexto(bloco, id){
+  var d = document.createElement('div');
+  d.className = 'cert-txt' + (certSel === id ? ' sel' : '');
+  d.dataset.id = String(id);
+  d.style.left = (Number(bloco.x || 50)) + '%';
+  d.style.top = (Number(bloco.y || 50)) + '%';
+  // O tamanho é % da ALTURA da página, igual ao gerador de PDF, senão a
+  // prévia mente sobre o resultado.
+  d.style.fontSize = (Number(bloco.tamanho || 3)) + 'cqh';
+
+  // O padrão do negrito é DIFERENTE entre o nome e as linhas, e tem que
+  // ser o mesmo do gerador: lá o nome é negrito quando não dizem o
+  // contrário, e a linha é normal quando não pedem negrito. Com a regra
+  // única aqui, a prévia mostrava tudo em negrito e o PDF saía magro.
+  var ehNome = id === 'nome';
+  var negrito = ehNome ? bloco.negrito !== false : !!bloco.negrito;
+  d.style.fontWeight = negrito ? '700' : '400';
+
+  d.style.color = bloco.cor || '#1f2937';
+  d.style.textAlign = bloco.alinhamento || 'centro';
+  d.textContent = ehNome
+    ? (certNome.exemplo || 'João da Conceição Neto')
+    : (bloco.texto || '(texto vazio)');
+  // A largura permitida é a mesma do gerador, para o encolhimento
+  // automático acontecer na prévia no mesmo ponto.
+  d.dataset.max = String(Number(
+    bloco.maxLargura != null ? bloco.maxLargura : (ehNome ? 80 : 84)));
+
+  d.onmousedown = function(ev){ pegarTexto(ev, id, d); };
+  d.ontouchstart = function(ev){ pegarTexto(ev, id, d); };
+  return d;
+}
+
+function pegarTexto(ev, id, el){
+  ev.preventDefault();
+  certSel = id;
+  var palco = document.getElementById('cert-palco');
+  var bloco = id === 'nome' ? certNome : certLinhas[id];
+  if(!bloco) return;
+
+  document.querySelectorAll('.cert-txt').forEach(function(e){
+    e.classList.toggle('sel', e.dataset.id === String(id)); });
+  atualizarControles();
+
+  var mover = function(e){
+    var ponto = e.touches ? e.touches[0] : e;
+    var r = palco.getBoundingClientRect();
+    // Preso dentro da folha: texto arrastado para fora não aparece no
+    // PDF e o cliente ficaria procurando onde foi.
+    var x = Math.max(2, Math.min(98, ((ponto.clientX - r.left) / r.width) * 100));
+    var y = Math.max(1, Math.min(97, ((ponto.clientY - r.top) / r.height) * 100));
+    bloco.x = Math.round(x * 10) / 10;
+    bloco.y = Math.round(y * 10) / 10;
+    el.style.left = bloco.x + '%';
+    el.style.top = bloco.y + '%';
+    marcarIscaMudou();
+  };
+  var soltar = function(){
+    document.removeEventListener('mousemove', mover);
+    document.removeEventListener('mouseup', soltar);
+    document.removeEventListener('touchmove', mover);
+    document.removeEventListener('touchend', soltar);
+  };
+  document.addEventListener('mousemove', mover);
+  document.addEventListener('mouseup', soltar);
+  document.addEventListener('touchmove', mover, { passive:false });
+  document.addEventListener('touchend', soltar);
+}
+
+function atualizarControles(){
+  var box = document.getElementById('cert-controles');
+  if(!box) return;
+  if(certSel === null){
+    box.style.display = 'none';
+    document.getElementById('isca-sel-info').textContent =
+      'Toque num texto da imagem para editar';
+    return;
+  }
+  box.style.display = '';
+  var ehNome = certSel === 'nome';
+  var bloco = ehNome ? certNome : certLinhas[certSel];
+  if(!bloco){ certSel = null; return atualizarControles(); }
+
+  document.getElementById('isca-sel-info').textContent =
+    ehNome ? 'Editando: o nome do lead' : 'Editando: linha de texto';
+  // O texto do nome não se escreve: é o do lead. Só posição e estilo.
+  document.getElementById('cert-campo-texto').style.display =
+    ehNome ? 'none' : '';
+  document.getElementById('cert-campo-remover').style.display =
+    ehNome ? 'none' : '';
+  document.getElementById('cert-texto').value = bloco.texto || '';
+  document.getElementById('cert-tam').value = Number(bloco.tamanho || 3);
+  document.getElementById('cert-tam-val').textContent =
+    '(' + (Number(bloco.tamanho || 3)).toFixed(1) + ')';
+  document.getElementById('cert-cor').value = corHex(bloco.cor || '#1f2937');
+  document.getElementById('cert-negrito').value =
+    bloco.negrito === false ? '0' : '1';
+}
+
+function corHex(v){
+  var s = String(v || '').trim();
+  if(/^#[0-9a-f]{6}$/i.test(s)) return s;
+  if(/^#[0-9a-f]{3}$/i.test(s)){
+    return '#' + s[1]+s[1] + s[2]+s[2] + s[3]+s[3];
+  }
+  return '#1f2937';
+}
+
+function blocoSel(){
+  return certSel === 'nome' ? certNome
+    : (certSel === null ? null : certLinhas[certSel]);
+}
+
+function mudarTextoSel(v){
+  var b = blocoSel(); if(!b) return;
+  b.texto = v; marcarIscaMudou(); desenharPalco();
+}
+function mudarTamSel(v){
+  var b = blocoSel(); if(!b) return;
+  b.tamanho = Number(v);
+  document.getElementById('cert-tam-val').textContent =
+    '(' + Number(v).toFixed(1) + ')';
+  marcarIscaMudou(); desenharPalco();
+}
+function mudarCorSel(v){
+  var b = blocoSel(); if(!b) return;
+  b.cor = v; marcarIscaMudou(); desenharPalco();
+}
+function mudarNegritoSel(v){
+  var b = blocoSel(); if(!b) return;
+  b.negrito = v === '1'; marcarIscaMudou(); desenharPalco();
+}
+
+function addLinhaIsca(){
+  certLinhas.push({ texto:'Certificamos que', x:50, y:30, tamanho:2.5,
+                    negrito:false, cor:'#333333' });
+  certSel = certLinhas.length - 1;
+  marcarIscaMudou(); desenharPalco();
+}
+
+function removerLinhaSel(){
+  if(certSel === null || certSel === 'nome') return;
+  certLinhas.splice(certSel, 1);
+  certSel = null;
+  marcarIscaMudou(); desenharPalco();
+}
+
+async function verPreviaCert(){
+  if(iscaMudou || !iscaAtual.slug){
+    return avisoIsca('salve primeiro — a prévia usa o que está gravado');
+  }
+  // Abre o certificado de quem já preencheu, para conferir com dado
+  // real. Sem ninguém ainda, avisa em vez de abrir página vazia.
+  try{
+    var r = await fetch(API + '/api/isca-entregas?lancamento='
+      + encodeURIComponent(lancamentoAtual) + '&isca='
+      + encodeURIComponent(iscaAtual.slug) + '&limite=1',
+      { headers:{ Authorization:'Bearer ' + sessao.token } });
+    var d = await r.json();
+    var e = (d.entregas || [])[0];
+    if(!e) return avisoIsca('ninguém preencheu ainda — abra o link e '
+      + 'preencha você mesmo para ver o certificado');
+    window.open(API + '/c/' + encodeURIComponent(e.codigo) + '/baixar', '_blank');
+  }catch(err){ avisoIsca('falha de conexão'); }
+}
+
+/* -------------------- uploads -------------------- */
+
+/**
+ * A arte vai para o R2 já como JPEG.
+ *
+ * A conversão acontece aqui no navegador porque o gerador de PDF só
+ * embute JPEG — PNG com transparência exigiria desenrolar zlib dentro do
+ * Worker. Convertendo aqui, o cliente sobe o que tiver na mão.
+ */
+async function subirFundoIsca(){
+  var inp = document.getElementById('isca-fundo');
+  var st = document.getElementById('isca-fundo-status');
+  var f = inp.files && inp.files[0];
+  if(!f) return;
+  st.textContent = 'convertendo…';
+
+  try{
+    var jpeg = await paraJpeg(f);
+    st.textContent = 'enviando ' + (jpeg.size/1048576).toFixed(1) + ' MB…';
+    var fd = new FormData();
+    fd.append('arquivo', jpeg, 'arte-certificado.jpg');
+    fd.append('papel', 'fundo');
+    var r = await fetch(API + '/api/isca-arquivo', {
+      method:'POST', headers:{ Authorization:'Bearer ' + sessao.token },
+      body: fd });
+    var d = await r.json();
+    if(!d.ok){ st.textContent = ''; return avisoIsca(d.erro || 'falhou'); }
+    iscaAtual.config = iscaAtual.config || {};
+    iscaAtual.config.fundo_url = d.url;
+    st.textContent = '✓ arte carregada';
+    marcarIscaMudou();
+    desenharPalco();
+  }catch(e){
+    st.textContent = '';
+    avisoIsca('não consegui ler a imagem: ' + (e.message || e));
+  }
+}
+
+function paraJpeg(arquivo){
+  return new Promise(function(ok, falhou){
+    var img = new Image();
+    var url = URL.createObjectURL(arquivo);
+    img.onload = function(){
+      URL.revokeObjectURL(url);
+      // 2480 de largura é A4 a 300dpi: o suficiente para imprimir sem
+      // gerar um PDF de 8 MB por lead.
+      var maxL = 2480;
+      var escala = Math.min(1, maxL / img.naturalWidth);
+      var c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * escala);
+      c.height = Math.round(img.naturalHeight * escala);
+      var ctx = c.getContext('2d');
+      // Fundo branco antes de desenhar: PNG transparente sem isto vira
+      // fundo preto no JPEG.
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(function(b){
+        if(b) ok(b); else falhou(new Error('não consegui converter'));
+      }, 'image/jpeg', 0.92);
+    };
+    img.onerror = function(){
+      URL.revokeObjectURL(url);
+      falhou(new Error('arquivo não é uma imagem'));
+    };
+    img.src = url;
+  });
+}
+
+async function subirArqIsca(){
+  var inp = document.getElementById('isca-arq');
+  var st = document.getElementById('isca-arq-status');
+  var f = inp.files && inp.files[0];
+  if(!f) return;
+  st.textContent = 'enviando ' + (f.size/1048576).toFixed(1) + ' MB…';
+  try{
+    var fd = new FormData();
+    fd.append('arquivo', f, f.name);
+    var r = await fetch(API + '/api/isca-arquivo', {
+      method:'POST', headers:{ Authorization:'Bearer ' + sessao.token },
+      body: fd });
+    var d = await r.json();
+    if(!d.ok){ st.textContent = ''; return avisoIsca(d.erro || 'falhou'); }
+    iscaAtual.arquivo_url = d.url;
+    var campo = document.getElementById('isca-arq-nome');
+    if(!campo.value) campo.value = f.name;
+    st.textContent = '✓ arquivo carregado';
+    marcarIscaMudou();
+  }catch(e){ st.textContent = ''; avisoIsca('falha de conexão'); }
+}
+
+/* -------------------- as perguntas -------------------- */
+
+function addPerguntaIsca(){
+  iscaPerguntas.push({
+    chave: 'pergunta_' + (iscaPerguntas.length + 1),
+    enunciado: '', tipo: 'opcao', obrigatoria: true, ajuda: '',
+    opcoes: [{ valor:'op1', label:'' }]
+  });
+  marcarIscaMudou();
+  desenharPerguntasIsca();
+}
+
+function desenharPerguntasIsca(){
+  var alvo = document.getElementById('isca-perguntas');
+  if(!alvo) return;
+
+  if(!iscaPerguntas.length){
+    alvo.innerHTML = '<div class="vazio">Nenhuma pergunta ainda. Sem pergunta o formulário '
+      + 'só pede nome e e-mail — e você perde o motivo de ter criado a '
+      + 'isca.</div>';
+    return;
+  }
+
+  alvo.innerHTML = iscaPerguntas.map(function(p, i){
+    var h = '<div class="q-card">'
+      + '<div class="int-topo" style="margin-bottom:12px">'
+      + '<div class="q-num">'+(i+1)+'</div>'
+      + '<input value="'+esc(p.enunciado)+'" placeholder="Escreva a pergunta"'
+      + ' oninput="iscaPerguntas['+i+'].enunciado=this.value;marcarIscaMudou()"'
+      + ' style="flex:1;min-width:180px">'
+      + '<select onchange="mudarTipoPergIsca('+i+',this.value)" style="min-width:150px">'
+      + '<option value="opcao"'+(p.tipo==='opcao'?' selected':'')+'>Uma opção</option>'
+      + '<option value="multipla"'+(p.tipo==='multipla'?' selected':'')+'>Várias opções</option>'
+      + '<option value="texto"'+(p.tipo==='texto'?' selected':'')+'>Texto livre</option>'
+      + '</select>'
+      + '<button class="mini" onclick="removerPergIsca('+i+')">Remover</button>'
+      + '</div>'
+
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:10px">'
+      + '<div class="campo" style="margin:0"><label>Identificador</label>'
+      + '<input value="'+esc(p.chave)+'" '
+      + 'oninput="iscaPerguntas['+i+'].chave=this.value;marcarIscaMudou()" '
+      + 'style="font-family:var(--mono);font-size:12.5px"></div>'
+      + '<div class="campo" style="margin:0"><label>Texto de apoio</label>'
+      + '<input value="'+esc(p.ajuda||'')+'" '
+      + 'oninput="iscaPerguntas['+i+'].ajuda=this.value;marcarIscaMudou()"></div>'
+      + '<div class="campo" style="margin:0"><label>Precisa responder?</label>'
+      + '<select onchange="iscaPerguntas['+i+'].obrigatoria=(this.value===\'1\');marcarIscaMudou()">'
+      + '<option value="1"'+(p.obrigatoria!==false?' selected':'')+'>Sim</option>'
+      + '<option value="0"'+(p.obrigatoria===false?' selected':'')+'>Não</option>'
+      + '</select></div>'
+      + '</div>';
+
+    if(p.tipo !== 'texto'){
+      h += '<div class="isca-opcoes">'
+        + (p.opcoes || []).map(function(o, j){
+            return '<div class="isca-op-linha">'
+              + '<input value="'+esc(o.label||'')+'" placeholder="O que o lead vê" '
+              + 'oninput="iscaPerguntas['+i+'].opcoes['+j+'].label=this.value;marcarIscaMudou()" '
+              + 'style="flex:1;min-width:140px">'
+              + '<input value="'+esc(o.valor||'')+'" placeholder="valor" '
+              + 'oninput="iscaPerguntas['+i+'].opcoes['+j+'].valor=this.value;marcarIscaMudou()" '
+              + 'style="width:110px;font-family:var(--mono);font-size:12px">'
+              + '<button class="mini" onclick="removerOpIsca('+i+','+j+')">×</button>'
+              + '</div>';
+          }).join('')
+        + '<button class="mini" onclick="addOpIsca('+i+')">+ Opção</button>'
+        + '</div>';
+    }
+
+    return h + '</div>';
+  }).join('');
+}
+
+function mudarTipoPergIsca(i, tipo){
+  iscaPerguntas[i].tipo = tipo;
+  if(tipo !== 'texto' && !(iscaPerguntas[i].opcoes || []).length){
+    iscaPerguntas[i].opcoes = [{ valor:'op1', label:'' }];
+  }
+  marcarIscaMudou();
+  desenharPerguntasIsca();
+}
+function removerPergIsca(i){
+  iscaPerguntas.splice(i, 1); marcarIscaMudou(); desenharPerguntasIsca();
+}
+function addOpIsca(i){
+  iscaPerguntas[i].opcoes = iscaPerguntas[i].opcoes || [];
+  iscaPerguntas[i].opcoes.push({
+    valor:'op' + (iscaPerguntas[i].opcoes.length + 1), label:'' });
+  marcarIscaMudou(); desenharPerguntasIsca();
+}
+function removerOpIsca(i, j){
+  iscaPerguntas[i].opcoes.splice(j, 1);
+  marcarIscaMudou(); desenharPerguntasIsca();
+}
+
+/* -------------------- salvar -------------------- */
+
+async function salvarIsca(){
+  var b = document.getElementById('btn-salvar-isca');
+  var v = function(id){
+    var e = document.getElementById(id);
+    return e ? String(e.value || '').trim() : '';
+  };
+
+  var nome = v('isca-nome');
+  if(!nome) return avisoIsca('dê um nome para a entrega');
+
+  var tipo = v('isca-tipo');
+
+  var perguntas = iscaPerguntas.map(function(p, i){
+    return {
+      chave: (p.chave || ('pergunta_'+(i+1))).trim(),
+      enunciado: p.enunciado, ordem: i + 1, tipo: p.tipo,
+      obrigatoria: p.obrigatoria !== false, ajuda: p.ajuda,
+      opcoes: (p.opcoes || []).map(function(o, j){
+        return {
+          valor: (o.valor || ('op'+(j+1))).trim(),
+          // Sem rótulo, mostra o valor: opção em branco no formulário é
+          // pior que opção com nome técnico.
+          label: (o.label || o.valor || ('Opção '+(j+1)))
+        };
+      })
+    };
+  });
+
+  var semEnunciado = perguntas.filter(function(p){
+    return !String(p.enunciado || '').trim(); });
+  if(semEnunciado.length) return avisoIsca('há pergunta sem enunciado');
+
+  var chaves = perguntas.map(function(p){ return p.chave; });
+  if(new Set(chaves).size !== chaves.length){
+    return avisoIsca('há duas perguntas com o mesmo identificador');
+  }
+
+  var corpo = {
+    lancamento: lancamentoAtual,
+    slug: iscaAtual.slug || '',
+    nome: nome,
+    tipo: tipo,
+    ativa: v('isca-ativa') === '1',
+    intro: { titulo: v('isca-intro-titulo'), texto: v('isca-intro-texto'),
+             botao: v('isca-intro-botao') },
+    perguntas: perguntas
+  };
+
+  if(tipo === 'arquivo'){
+    corpo.arquivo_url = iscaAtual.arquivo_url || '';
+    corpo.arquivo_nome = v('isca-arq-nome');
+  }else{
+    corpo.config = {
+      fundo_url: (iscaAtual.config || {}).fundo_url || '',
+      evento: v('isca-evento'),
+      carga_horaria: v('isca-carga'),
+      nome: certNome,
+      linhas: certLinhas
+    };
+  }
+
+  b.disabled = true; b.textContent = 'Salvando…';
+  try{
+    var r = await fetch(API + '/api/iscas?lancamento='
+      + encodeURIComponent(lancamentoAtual), {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json',
+                Authorization:'Bearer ' + sessao.token },
+      body: JSON.stringify(corpo) });
+    var d = await r.json();
+    if(!d.ok){
+      b.disabled = false; b.textContent = 'Salvar';
+      return avisoIsca(d.erro || 'não consegui salvar');
+    }
+    b.textContent = '✓ Salvo';
+    iscaMudou = false;
+    // recarrega para pegar o slug novo e o "falta" recalculado
+    iscaAtual.slug = d.slug;
+    await carregarIscas();
+    var sel = document.getElementById('isca-qual');
+    if(sel){ sel.value = d.slug; trocarIsca(d.slug); }
+  }catch(e){
+    b.disabled = false; b.textContent = 'Salvar';
+    avisoIsca('falha de conexão');
+  }
+}
+
+function copiarLinkIsca(){
+  var e = document.getElementById('isca-link');
+  e.select();
+  navigator.clipboard.writeText(e.value).then(function(){
+    var b = document.getElementById('btn-copiar-isca');
+    b.textContent = '✓ Copiado';
+    setTimeout(function(){ b.textContent = 'Copiar'; }, 2000);
+  }).catch(function(){ avisoIsca('copie com Ctrl+C'); });
+}
+function abrirLinkIsca(){
+  var e = document.getElementById('isca-link');
+  if(e && e.value) window.open(e.value, '_blank');
+}
+
+/* -------------------- quem preencheu -------------------- */
+
+async function carregarEntregasIsca(){
+  if(!iscaAtual || !iscaAtual.slug) return;
+  var alvo = document.getElementById('isca-entregas');
+  var resumo = document.getElementById('isca-respostas-resumo');
+  alvo.innerHTML = '<div class="vazio">carregando…</div>';
+
+  try{
+    var r = await fetch(API + '/api/isca-entregas?lancamento='
+      + encodeURIComponent(lancamentoAtual) + '&isca='
+      + encodeURIComponent(iscaAtual.slug),
+      { headers:{ Authorization:'Bearer ' + sessao.token } });
+    var d = await r.json();
+    if(!d.ok){
+      alvo.innerHTML = '';
+      return avisoIsca(d.erro || 'não consegui carregar');
+    }
+
+    document.getElementById('isca-contagem').textContent =
+      d.total + ' preencheram · ' + d.baixaram + ' baixaram';
+
+    resumo.innerHTML = desenharResumoIsca(d.por_resposta || []);
+    alvo.innerHTML = desenharListaIsca(d.entregas || [], d.isca || {});
+    entregasIsca = d.entregas || [];
+  }catch(e){
+    alvo.innerHTML = '';
+    avisoIsca('falha de conexão');
+  }
+}
+
+var entregasIsca = [];
+
+function desenharResumoIsca(grupos){
+  if(!grupos.length) return '';
+
+  return '<div class="isca-resumo">' + grupos.map(function(g){
+    var respostas = g.respostas || [];
+    if(g.tipo === 'texto'){
+      return '<div class="isca-grupo">'
+        + '<div class="isca-grupo-tit">'+esc(g.pergunta)
+        + ' <span>'+g.responderam+' responderam</span></div>'
+        + '<div class="isca-textos">'
+        + respostas.slice(0, 40).map(function(x){
+            return '<div class="isca-texto-item">'+esc(x.resposta)+'</div>';
+          }).join('')
+        + (respostas.length > 40
+            ? '<div class="isca-dica">mostrando as 40 mais recentes</div>' : '')
+        + '</div></div>';
+    }
+    var maior = Math.max.apply(null, respostas.map(function(x){
+      return Number(x.leads || 0); }).concat([1]));
+    return '<div class="isca-grupo">'
+      + '<div class="isca-grupo-tit">'+esc(g.pergunta)
+      + ' <span>'+g.responderam+' responderam</span></div>'
+      + respostas.map(function(x){
+          var pct = Number(x.pct || 0);
+          return '<div class="isca-barra-linha">'
+            + '<div class="isca-barra-rot">'+esc(x.resposta)+'</div>'
+            + '<div class="isca-barra"><div class="isca-barra-i" style="width:'
+            + Math.round(100 * Number(x.leads || 0) / maior)+'%"></div></div>'
+            + '<div class="isca-barra-num">'+x.leads
+            + ' <span>'+pct.toFixed(0)+'%</span></div>'
+            + '</div>';
+        }).join('')
+      + '</div>';
+  }).join('') + '</div>';
+}
+
+function desenharListaIsca(lista, isca){
+  if(!lista.length){
+    return '<div class="vazio">'
+      + 'Ninguém preencheu ainda. Divulgue o link acima.</div>';
+  }
+
+  var ehCert = isca.tipo === 'certificado';
+
+  return '<div class="rolagem"><table><thead><tr>'
+    + '<th>Lead</th><th>Respostas</th><th>Quando</th>'
+    + '<th>Baixou</th><th>Ações</th>'
+    + '</tr></thead><tbody>'
+    + lista.map(function(e, i){
+        var resp = (e.respostas || []).map(function(r){
+          return '<div class="isca-resp"><span>'+esc(r.pergunta)+'</span> '
+            + esc(r.resposta)+'</div>';
+        }).join('') || '<span class="isca-dica">sem respostas</span>';
+
+        return '<tr>'
+          + '<td><div style="font-weight:500">'+esc(e.nome || 'sem nome')+'</div>'
+          + '<div class="sub">'+esc(e.email || '—')+'</div>'
+          + (e.comprou ? '<span class="pilula" style="font-size:10px">comprou</span>' : '')
+          + '</td>'
+          + '<td class="isca-td-resp">'+resp+'</td>'
+          + '<td>'+dataCurta(e.criado_em)+'</td>'
+          + '<td>'+(e.baixou
+              ? '<span class="pilula" style="color:var(--positivo)">'+e.vezes_baixou+'×</span>'
+              : '<span class="pilula">não</span>')+'</td>'
+          + '<td><div class="isca-acoes">'
+          + '<button class="mini" onclick="pegarArquivoIsca('+i+')">'
+          + (ehCert ? '📄 Certificado' : '📄 Arquivo')+'</button>'
+          + (e.whatsapp
+              ? '<button class="mini" onclick="zapIsca('+i+')">💬 WhatsApp</button>'
+              : '')
+          + '<button class="mini" onclick="copiarLinkLead('+i+')">🔗 Link</button>'
+          + '</div></td>'
+          + '</tr>';
+      }).join('')
+    + '</tbody></table></div>';
+}
+
+/**
+ * Abre o arquivo do lead — o MESMO que ele baixou.
+ *
+ * É o que resolve "não consegui baixar, me manda": o cliente abre daqui
+ * e encaminha. Não é uma segunda via parecida, é o mesmo arquivo, porque
+ * sai do mesmo endereço que o lead usou.
+ */
+function pegarArquivoIsca(i){
+  var e = entregasIsca[i];
+  if(!e) return;
+  window.open(API + '/c/' + encodeURIComponent(e.codigo) + '/baixar', '_blank');
+}
+
+function copiarLinkLead(i){
+  var e = entregasIsca[i];
+  if(!e) return;
+  var url = API + '/c/' + encodeURIComponent(e.codigo);
+  navigator.clipboard.writeText(url).then(function(){
+    mostrarToast('Link do lead copiado');
+  }).catch(function(){ avisoIsca(url); });
+}
+
+function zapIsca(i){
+  var e = entregasIsca[i];
+  if(!e || !e.whatsapp) return;
+  var msg = 'Oi ' + String(e.nome || '').split(' ')[0]
+    + '! Aqui está o seu '
+    + ((iscaAtual && iscaAtual.tipo === 'certificado') ? 'certificado' : 'material')
+    + ': ' + API + '/c/' + e.codigo;
+  window.open('https://wa.me/' + e.whatsapp + '?text=' + encodeURIComponent(msg),
+    '_blank');
+}
 
 async function carregarQuiz(){
   var alvo = document.getElementById('quiz-perguntas');
