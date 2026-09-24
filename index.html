@@ -626,6 +626,16 @@ tr.queimando td:first-child{box-shadow:inset 3px 0 0 #C4571F}
    isto o campo de rascunho nasce fora da área visível — e é no celular
    que o time de vendas trabalha. Grudado à esquerda, ele acompanha a
    rolagem e fica sempre alcançável. */
+/* A barra do funil: a largura conta a proporção de quem chegou em cada
+   etapa. Número sozinho não mostra o degrau; a barra mostra. */
+.tmb-barra{
+  height:7px;border-radius:4px;background:var(--fundo-2);
+  overflow:hidden;
+}
+.tmb-barra i{
+  display:block;height:100%;background:var(--destaque);
+  border-radius:4px;
+}
 .rec-acoes-cel{display:none}
 @media (max-width:760px){
   .rec-nota-linha{
@@ -1604,6 +1614,15 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
 
       <section class="painel">
         <div class="painel-topo">
+          <div class="painel-titulo"><span class="emoji">📝</span>
+            Checkout da TMB — as nove etapas</div>
+          <button class="btn" onclick="carregarTmbCheckout()">Atualizar</button>
+        </div>
+        <div id="rec-tmb"></div>
+      </section>
+
+      <section class="painel">
+        <div class="painel-topo">
           <div class="painel-titulo"><span class="emoji">🏦</span>
             Financiamento — clicou e não começou</div>
           <button class="btn" onclick="carregarCliquesFinanciamento()">
@@ -1908,7 +1927,7 @@ function trocarLancamento(){
   }
   else if(telaAtual === 'recuperacao'){
     carregarRecuperacao(); carregarMensagensRec();
-    carregarCliquesFinanciamento();
+    carregarTmbCheckout(); carregarCliquesFinanciamento();
   }
   else if(telaAtual === 'faturamento') carregarFaturamento();
   else if(telaAtual === 'aulas') carregarAulas();
@@ -2148,7 +2167,7 @@ function irPara(tela, el){
   }
   if(tela === 'recuperacao'){
     carregarRecuperacao(); carregarMensagensRec();
-    carregarCliquesFinanciamento();
+    carregarTmbCheckout(); carregarCliquesFinanciamento();
   }
   if(tela === 'faturamento') carregarFaturamento();
   if(tela === 'integracoes'){ carregarIntegracoes(); carregarEventosMeta(); }
@@ -7143,6 +7162,216 @@ async function salvarMensagemRec(i){
     res.innerHTML = '<span style="color:var(--negativo)">'
       + esc(e.message) + '</span>';
   }
+}
+
+// ---------------------------------------------------------------------
+// O CHECKOUT DA TMB, ETAPA POR ETAPA
+//
+// A TMB manda webhook em nove etapas do preenchimento do contrato. Duas
+// leituras diferentes saem daí:
+//
+//   quantos CHEGARAM em cada etapa  → onde o funil perde gente
+//   quantos estão PARADOS ali agora → a fila de hoje, para chamar
+//
+// Não existe evento de reprovação em nenhum webhook da TMB. Quem foi
+// negado na análise aparece como parado na última etapa que alcançou —
+// e a dash não tem como distinguir isso de quem simplesmente desistiu.
+// ---------------------------------------------------------------------
+async function carregarTmbCheckout(){
+  var alvo = document.getElementById('rec-tmb');
+  if(!alvo) return;
+
+  alvo.innerHTML = '<div class="carregando">Carregando…</div>';
+
+  var d;
+  try{ d = await api('/api/tmb-checkout?lancamento='
+                     + encodeURIComponent(lancamentoAtual)); }
+  catch(e){
+    alvo.innerHTML = '<div class="alerta-caixa perigo">' + esc(e.message)
+      + '</div>';
+    return;
+  }
+
+  if(!d.ok){
+    alvo.innerHTML = '<div class="alerta-caixa perigo">'
+      + esc(d.erro || 'falhou') + '</div>';
+    return;
+  }
+
+  var r = d.resumo || {};
+  var etapas = d.etapas || [];
+  var parados = d.parados || [];
+
+  // Sem nenhum pedido, o painel explica o que configurar em vez de
+  // mostrar nove zeros — que o cliente leria como "ninguém comprou".
+  if(!Number(r.pedidos)){
+    alvo.innerHTML =
+      '<div class="alerta-caixa">Nenhum pedido da TMB chegou ainda neste '
+      + 'lançamento.<br><br>Se você espera ver algo aqui, confira na TMB '
+      + 'em <b>Produtos → Mais Opções → Integrações</b> se o '
+      + '<b>Webhook Etapas do Checkout</b> está ativo e apontando para a '
+      + 'dash. Os webhooks de Vendas e Financeiro são outros dois, '
+      + 'separados.</div>';
+    return;
+  }
+
+  // o maior "chegaram" é a base das barras
+  var maior = etapas.reduce(function(m, e){
+    return Math.max(m, Number(e.chegaram) || 0); }, 0) || 1;
+
+  alvo.innerHTML =
+    '<div class="metricas" style="margin-bottom:16px">'
+    + [['📝 Pedidos', numero(r.pedidos), ''],
+       ['⏳ Em andamento', numero(r.em_andamento),
+        moeda(r.valor_em_andamento)],
+       ['✍️ Assinaram e não pagaram', numero(r.assinaram_sem_pagar),
+        moeda(r.valor_assinado_sem_pagar)],
+       ['✅ Efetivados', numero(r.efetivados), moeda(r.faturado)],
+       ['💵 Recebido de parcela', moeda(r.recebido), 'repasse da TMB']]
+      .map(function(x){
+        return '<div class="metrica"><div class="rot">' + x[0] + '</div>'
+          + '<div class="num">' + x[1] + '</div>'
+          + (x[2] ? '<div class="pe">' + x[2] + '</div>' : '') + '</div>';
+      }).join('')
+    + '</div>'
+
+    + (Number(r.com_boleto_em_maos)
+        ? '<div class="alerta-caixa" style="margin-bottom:14px">💡 '
+          + numero(r.com_boleto_em_maos) + ' pessoa(s) assinaram o contrato '
+          + 'e a dash tem o <b>link do boleto de entrada</b> delas. É o '
+          + 'grupo mais fácil de recuperar: só falta reenviar o link.</div>'
+        : '')
+
+    // Etapa de baixo com mais gente que a de cima é impossível num
+    // funil de verdade: a dash começou a ouvir com gente já no meio do
+    // checkout. Acontece na semana que o webhook é ligado.
+    + (d.funil_incompleto
+        ? '<div class="alerta-caixa" style="margin-bottom:14px">⚠️ '
+          + 'Uma etapa de baixo tem mais gente que a de cima. Isso quer '
+          + 'dizer que o webhook foi ligado com pedidos já em andamento: '
+          + 'quem estava no meio só aparece a partir da etapa onde estava. '
+          + 'Passa sozinho conforme entram pedidos novos.</div>'
+        : '')
+
+    // Etapa que a dash não reconhece não entra em nenhuma linha do
+    // funil. Sem este aviso o pedido simplesmente desaparece da tela.
+    + (Number(r.etapa_desconhecida)
+        ? '<div class="alerta-caixa perigo" style="margin-bottom:14px">'
+          + numero(r.etapa_desconhecida) + ' pedido(s) numa etapa que a '
+          + 'dash não conhece: <b>'
+          + esc((r.etapas_desconhecidas_nomes || []).join(', '))
+          + '</b>. Eles não aparecem no funil abaixo. Me manda esse nome '
+          + 'que eu encaixo na ordem certa.</div>'
+        : '')
+
+    // ---- o funil
+    + '<div class="rolagem"><table><thead><tr>'
+    + '<th style="width:26px"></th><th>Etapa</th>'
+    + '<th class="num-td">Chegaram</th><th></th>'
+    + '<th class="num-td">Parados aqui</th>'
+    + '<th class="num-td">Preso</th>'
+    + '</tr></thead><tbody>'
+    + etapas.map(function(e, i){
+        var ant = i > 0 ? Number(etapas[i-1].chegaram) : null;
+        var ch = Number(e.chegaram) || 0;
+        // quanto caiu em relação à etapa anterior: é aqui que se vê o
+        // degrau, e o degrau é o problema a resolver
+        var caiu = (ant && ant > 0 && ch < ant)
+          ? Math.round(100 * (ant - ch) / ant) : null;
+        var larg = Math.round(100 * ch / maior);
+
+        return '<tr' + (Number(e.parados) ? '' : ' style="opacity:.62"') + '>'
+          + '<td class="num-td" style="color:var(--texto-3)">' + e.ordem + '</td>'
+          + '<td>' + esc(e.fase)
+          + '<div class="sub">' + esc(e.o_que_e) + '</div></td>'
+          + '<td class="num-td">' + numero(ch)
+          + (caiu ? '<div class="sub" style="color:var(--destaque)">−'
+              + caiu + '%</div>' : '')
+          + '</td>'
+          + '<td style="width:150px"><div class="tmb-barra">'
+          + '<i style="width:' + larg + '%"></i></div></td>'
+          + '<td class="num-td">' + (Number(e.parados)
+              ? '<b>' + numero(e.parados) + '</b>'
+                + (Number(e.com_telefone) < Number(e.parados)
+                    ? '<div class="sub">' + numero(e.com_telefone)
+                      + ' com zap</div>' : '')
+              : '<span style="color:var(--texto-3)">—</span>') + '</td>'
+          + '<td class="num-td">' + (Number(e.valor_parado)
+              ? moeda(e.valor_parado)
+              : '<span style="color:var(--texto-3)">—</span>') + '</td>'
+          + '</tr>';
+      }).join('')
+    + '</tbody></table></div>'
+
+    // ---- quem está parado, para chamar
+    + (parados.length
+        ? '<div class="int-rotulo" style="margin-top:18px">'
+          + 'Quem está parado agora</div>'
+          + '<div class="rolagem"><table><thead><tr>'
+          + '<th>Pessoa</th><th>Parou em</th>'
+          + '<th class="num-td">Há quanto tempo</th>'
+          + '<th class="num-td">Valor</th><th></th>'
+          + '</tr></thead><tbody>'
+          + parados.map(function(p, i){
+              var h = Number(p.horas_parado);
+              return '<tr>'
+                + '<td><div style="font-weight:500">'
+                + esc(p.nome || p.email || '—')
+                + (p.engenheiro
+                    ? ' <span class="pilula" style="font-size:10px">eng</span>'
+                    : '')
+                + '</div><div class="sub">' + esc(p.email || '')
+                + (p.telefone ? ' · ' + esc(p.telefone)
+                              : ' · <b>sem telefone</b>') + '</div></td>'
+                + '<td>' + esc(p.fase || '—')
+                + '<div class="sub">etapa ' + (p.ordem || '?')
+                + ' de 9</div></td>'
+                + '<td class="num-td"'
+                + (h >= 24 ? ' style="color:var(--destaque)"' : '') + '>'
+                + (isNaN(h) ? '—'
+                   : h < 24 ? h + 'h'
+                   : Math.round(h / 24) + ' dia' + (h >= 48 ? 's' : ''))
+                + '</td>'
+                + '<td class="num-td">' + moeda(p.valor)
+                + (p.valor_entrada
+                    ? '<div class="sub">entrada ' + moeda(p.valor_entrada)
+                      + '</div>' : '')
+                + '</td>'
+                + '<td>' + (p.tem_boleto
+                    ? '<button class="mini" onclick="abrirBoletoTmb(' + i + ')">'
+                      + '📄 Abrir boleto</button>'
+                    : '<span class="sub">—</span>') + '</td>'
+                + '</tr>';
+            }).join('')
+          + '</tbody></table></div>'
+        : '')
+
+    + '<div class="nota-tabela" style="margin-top:12px">'
+    + esc(d.nota || '')
+    + '<br><br><b>Chegaram</b> conta quem passou pela etapa em algum '
+    + 'momento; <b>parados aqui</b> conta quem está nela agora sem ter '
+    + 'efetivado. A queda em porcentagem é em relação à etapa de cima — '
+    + 'é nela que está o problema a resolver.</div>';
+
+  tmbParados = parados;
+}
+
+var tmbParados = [];
+
+/**
+ * Abre o boleto de entrada da pessoa.
+ *
+ * O link vem do próprio webhook da TMB, na etapa "Aguardando Pagamento".
+ * É o caminho mais curto de recuperação que existe nesta dash: a pessoa
+ * já assinou o contrato, só não pagou a entrada.
+ */
+function abrirBoletoTmb(i){
+  var p = tmbParados[i];
+  if(!p || !p.url_boleto){
+    mostrarToast('Essa pessoa não tem boleto gerado ainda');
+    return;
+  }
+  window.open(p.url_boleto, '_blank');
 }
 
 // ---------------------------------------------------------------------
