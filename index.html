@@ -614,6 +614,36 @@ tr.queimando td:first-child{box-shadow:inset 3px 0 0 #C4571F}
 .rec-tent{
   background:var(--fundo-2);font-size:12px;
 }
+/* A linha do status e do rascunho é recuada: junto com a pessoa de
+   cima, mas sem competir com ela na leitura da tabela. */
+.rec-nota td{
+  padding-top:0;padding-bottom:9px;border-top:none;
+}
+.rec-nota-linha{
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+}
+/* No celular a tabela é mais larga que a tela e rola na horizontal. Sem
+   isto o campo de rascunho nasce fora da área visível — e é no celular
+   que o time de vendas trabalha. Grudado à esquerda, ele acompanha a
+   rolagem e fica sempre alcançável. */
+.rec-acoes-cel{display:none}
+@media (max-width:760px){
+  .rec-nota-linha{
+    position:sticky;left:0;
+    max-width:calc(100vw - 72px);
+    flex-direction:column;align-items:stretch;
+  }
+  .rec-status, .rec-rascunho{min-width:0;width:100%}
+  /* no celular os botões vêm para cá e a coluna da direita fica só
+     para quem rolar a tabela */
+  .rec-acoes-cel{display:flex;gap:6px;flex-wrap:wrap}
+}
+.rec-status{
+  width:auto;min-width:190px;font-size:12.5px;padding:5px 8px;
+}
+.rec-rascunho{
+  flex:1;min-width:200px;font-size:12.5px;padding:5px 9px;
+}
 .rec-tent td{padding-top:6px;padding-bottom:6px}
 .rec-abrir{
   background:none;border:none;color:var(--destaque);cursor:pointer;
@@ -1563,6 +1593,17 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
 
       <section class="painel">
         <div class="painel-topo">
+          <div class="painel-titulo"><span class="emoji">💬</span>
+            Mensagens prontas</div>
+          <button class="btn" onclick="alternarMensagensRec()"
+                  id="bt-msg-abrir">Editar os textos</button>
+        </div>
+        <div id="rec-msg-resumo"></div>
+        <div id="rec-mensagens" style="display:none"></div>
+      </section>
+
+      <section class="painel">
+        <div class="painel-topo">
           <div class="painel-titulo"><span class="emoji">🏦</span>
             Financiamento — clicou e não começou</div>
           <button class="btn" onclick="carregarCliquesFinanciamento()">
@@ -1866,7 +1907,8 @@ function trocarLancamento(){
     carregarResultado(); carregarVendas();
   }
   else if(telaAtual === 'recuperacao'){
-    carregarRecuperacao(); carregarCliquesFinanciamento();
+    carregarRecuperacao(); carregarMensagensRec();
+    carregarCliquesFinanciamento();
   }
   else if(telaAtual === 'faturamento') carregarFaturamento();
   else if(telaAtual === 'aulas') carregarAulas();
@@ -2105,7 +2147,8 @@ function irPara(tela, el){
     carregarResultado(); carregarVendas();
   }
   if(tela === 'recuperacao'){
-    carregarRecuperacao(); carregarCliquesFinanciamento();
+    carregarRecuperacao(); carregarMensagensRec();
+    carregarCliquesFinanciamento();
   }
   if(tela === 'faturamento') carregarFaturamento();
   if(tela === 'integracoes'){ carregarIntegracoes(); carregarEventosMeta(); }
@@ -6649,40 +6692,35 @@ function desenharRecLista(){
   }
 
   alvo.innerHTML =
-    '<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;'
-    + 'align-items:center">'
-    + '<button class="mini" onclick="marcarTodosRec(true)">Marcar todos</button>'
-    + '<button class="mini" onclick="marcarTodosRec(false)">Desmarcar</button>'
-    + '<span id="rec-soma" style="font-size:13px;color:var(--texto-2)"></span>'
-    + '<div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">'
-    + '<button class="btn" onclick="enviarRec(\'email\')" id="bt-rec-email">'
-    + '📧 Enviar por e-mail</button>'
-    + '<button class="btn principal" onclick="enviarRec(\'whatsapp\')" '
-    + 'id="bt-rec-zap">📱 Enviar por WhatsApp</button>'
-    + '</div></div>'
+    '<div class="nota-tabela" style="margin-bottom:14px">'
+    + 'O botão <b>Chamar</b> abre a conversa dessa pessoa no WhatsApp do '
+    + 'computador, com a mensagem do motivo já escrita — você lê e ajusta '
+    + 'antes de enviar. Nada sai da dash sozinho. Os textos ficam no painel '
+    + 'abaixo da lista.</div>'
 
     + '<div class="rolagem"><table><thead><tr>'
-    + '<th style="width:34px"></th><th>Pessoa</th><th>Motivo</th>'
+    + '<th>Pessoa</th><th>Motivo</th>'
     + '<th class="num-td">Valor</th><th>Plataforma</th>'
-    + '<th class="num-td">Parado há</th><th>Já enviado</th>'
+    + '<th class="num-td">Parado há</th>'
+    + '<th style="width:150px"></th>'
     + '</tr></thead><tbody>'
     + lista.map(function(p, i){
-        var enviados = p.ja_enviado || [];
-        var linhas = '<tr>'
-          + '<td><input type="checkbox" class="rec-item" '
-          + 'data-id="' + esc(p.venda_id) + '" '
-          + 'data-valor="' + (p.valor || 0) + '" '
-          + (p.recuperavel === false ? '' : 'checked ')
-          + 'onchange="somarRec()" style="width:auto;margin:0"></td>'
+        var temZap = !!p.whatsapp;
+        var statusAtual = p.status || 'a_chamar';
+        // "já mexeu" só troca o rótulo do botão; nada some da lista por
+        // isso — quem foi chamado e não respondeu precisa ser chamado
+        // de novo
+        var jaMexeu = statusAtual !== 'a_chamar' || !!p.nota;
 
+        var linhas = '<tr>'
           + '<td><div style="font-weight:500">'
           + esc(p.nome || p.email || '—')
           + (p.engenheiro
               ? ' <span class="pilula" style="font-size:10px">eng</span>' : '')
           + '</div>'
           + '<div class="sub">' + esc(p.email || 'sem e-mail')
-          + (p.telefone ? ' · ' + esc(p.telefone)
-                        : ' · <b>sem telefone</b>') + '</div>'
+          + (temZap ? ' · ' + esc(p.telefone)
+                    : ' · <b>sem telefone</b>') + '</div>'
           + (p.comprou_outro
               ? '<div class="sub" style="color:var(--destaque)">'
                 + 'já comprou outro produto</div>' : '')
@@ -6706,18 +6744,61 @@ function desenharRecLista(){
           + (p.dias >= 3 ? ' style="color:var(--destaque)"' : '') + '>'
           + (p.dias === 0 ? 'hoje'
              : p.dias + (p.dias === 1 ? ' dia' : ' dias')) + '</td>'
-          + '<td>' + (enviados.length
-              ? enviados.map(function(c){
-                  return '<span class="pilula" style="font-size:10.5px">'
-                    + esc(c) + '</span>';
-                }).join(' ')
-              : '<span style="color:var(--texto-3)">—</span>') + '</td>'
-          + '</tr>';
+
+          + '<td><div style="display:flex;gap:6px;flex-wrap:wrap">'
+          + (temZap
+              ? '<button class="mini" onclick="chamarZap(' + i + ')" '
+                + 'title="abre a conversa no WhatsApp">'
+                + (jaMexeu ? 'Chamar de novo' : '📱 Chamar') + '</button>'
+              : '<span class="sub">sem telefone</span>')
+          + (p.mensagem
+              ? '<button class="mini" onclick="copiarMensagem(' + i + ')" '
+                + 'title="copia só o texto">Copiar</button>'
+              : '')
+          + '</div></td>'
+          + '</tr>'
+
+          // ---- o que aconteceu na conversa
+          //
+          // Em linha própria, abaixo da pessoa: o rascunho precisa de
+          // largura de verdade, e a tabela de cima fica varrível.
+          + '<tr class="rec-nota">'
+          + '<td colspan="6"><div class="rec-nota-linha">'
+          // No celular a coluna de ações fica fora da tela, e Chamar é a
+          // ação principal. Aqui ela entra na linha grudada; no
+          // computador esta cópia fica escondida.
+          + (temZap
+              ? '<div class="rec-acoes-cel">'
+                + '<button class="mini" onclick="chamarZap(' + i + ')">'
+                + (jaMexeu ? 'Chamar de novo' : '📱 Chamar') + '</button>'
+                + (p.mensagem
+                    ? '<button class="mini" onclick="copiarMensagem(' + i + ')">'
+                      + 'Copiar</button>'
+                    : '')
+                + '</div>'
+              : '')
+          + '<select class="campo rec-status" '
+          + 'onchange="salvarStatus(' + i + ', this.value)">'
+          + (recDados.status_possiveis || []).map(function(s){
+              return '<option value="' + esc(s.valor) + '"'
+                + (statusAtual === s.valor ? ' selected' : '') + '>'
+                + esc(s.rotulo) + '</option>';
+            }).join('')
+          + '</select>'
+          + '<input class="campo rec-rascunho" id="nota-' + i + '" '
+          + 'placeholder="Anote aqui o que ele respondeu…" '
+          + 'value="' + esc(p.nota || '') + '" '
+          + 'onchange="salvarNota(' + i + ')" '
+          + 'onkeydown="if(event.key===\'Enter\')this.blur()">'
+          + '<span class="sub" id="nota-res-' + i + '">'
+          + (p.nota_em ? 'anotado ' + dataCurta(p.nota_em) : '')
+          + '</span>'
+          + '</div></td></tr>';
 
         // ---- as outras tentativas da mesma pessoa, quando abertas
         if(recAbertas[i] && (p.outras || []).length){
           linhas += p.outras.map(function(o){
-            return '<tr class="rec-tent"><td></td>'
+            return '<tr class="rec-tent">'
               + '<td colspan="2" style="color:var(--texto-2)">'
               + '↳ ' + esc(o.rotulo)
               + ' <span class="sub" style="display:inline">'
@@ -6735,15 +6816,13 @@ function desenharRecLista(){
 
     + '<div id="rec-res" style="margin-top:12px"></div>'
     + '<div class="nota-tabela">'
-    + 'Chargeback e reembolso vêm desmarcados e nunca entram no disparo, '
-    + 'mesmo marcados: cobrar quem contestou no cartão rende reclamação. '
-    + 'Quem já recebeu nas últimas 24 horas também não recebe de novo.'
+    + 'Chargeback e reembolso aparecem para registro. Chargeback vem sem '
+    + 'mensagem pronta de propósito: quem contestou no cartão não deve '
+    + 'receber cobrança, e o texto quem escreve é você, olhando o caso.'
     + (recDados.lista.length >= (recDados.limite || 500)
         ? ' Mostrando os ' + numero(recDados.limite) + ' mais urgentes.'
         : '')
     + '</div>';
-
-  somarRec();
 }
 
 function abrirTentativas(i){
@@ -6751,72 +6830,266 @@ function abrirTentativas(i){
   desenharRecLista();
 }
 
-function marcarTodosRec(v){
-  document.querySelectorAll('.rec-item').forEach(function(c){ c.checked = v; });
-  somarRec();
+/**
+ * Abre a conversa no WhatsApp com a mensagem pronta.
+ *
+ * O wa.me abre o WhatsApp instalado no computador; sem o aplicativo, cai
+ * no WhatsApp Web. A mensagem vai escrita no campo, não enviada — o
+ * vendedor lê, ajusta e manda.
+ *
+ * A ordem aqui importa: a janela abre PRIMEIRO, no clique. Se eu
+ * registrasse o contato antes e esperasse a resposta, o navegador já
+ * teria perdido o gesto do usuário e o bloqueador de pop-up engoliria a
+ * aba.
+ */
+function chamarZap(i){
+  var p = (recDados.lista || [])[i];
+  if(!p || !p.whatsapp) return;
+
+  var url = 'https://wa.me/' + p.whatsapp
+    + (p.mensagem ? '?text=' + encodeURIComponent(p.mensagem) : '');
+
+  window.open(url, '_blank');
+
+  // Quem marca o que aconteceu é a pessoa, no seletor de status logo
+  // abaixo. Registrar o clique sozinho diria "chamado" para quem abriu
+  // a conversa e nem mandou mensagem.
+  mostrarToast('Conversa aberta — marque o status quando terminar');
 }
 
-function somarRec(){
-  var total = 0, n = 0;
-  document.querySelectorAll('.rec-item:checked').forEach(function(c){
-    total += Number(c.getAttribute('data-valor') || 0);
-    n++;
-  });
-  var el = document.getElementById('rec-soma');
-  if(el) el.innerHTML = n + ' marcado(s) · <b>' + moeda(total) + '</b>';
-}
+/**
+ * Grava o status e o rascunho.
+ *
+ * Um campo por vez: o backend distingue "não mandei esse campo" de
+ * "mandei vazio". Se eu mandasse os dois juntos, trocar o seletor
+ * apagaria a nota que a pessoa acabou de escrever.
+ *
+ * E não recarrego a lista depois de gravar: recarregar redesenha a
+ * tabela e tira o foco de quem está digitando na linha de baixo.
+ */
+async function gravarNotaCampo(i, corpo, aviso){
+  var p = (recDados.lista || [])[i];
+  if(!p) return;
 
-async function enviarRec(canal){
-  var ids = [];
-  document.querySelectorAll('.rec-item:checked').forEach(function(c){
-    ids.push(c.getAttribute('data-id'));
-  });
-
-  var res = document.getElementById('rec-res');
-  if(!ids.length){
-    res.innerHTML = '<div class="alerta-caixa">Marque quem deve receber.</div>';
-    return;
-  }
-
-  var b = document.getElementById(
-    canal === 'email' ? 'bt-rec-email' : 'bt-rec-zap');
-  var rotulo = b.textContent;
-  b.disabled = true; b.textContent = 'Enviando…';
+  var res = document.getElementById('nota-res-' + i);
+  if(res) res.textContent = 'salvando…';
 
   try{
-    var r = await fetch(API + '/api/recuperar-motivo?lancamento='
+    var r = await fetch(API + '/api/nota-recuperacao?lancamento='
                         + encodeURIComponent(lancamentoAtual), {
       method:'POST',
       headers:{'Content-Type':'application/json',
                Authorization:'Bearer ' + sessao.token},
-      body: JSON.stringify({
-        canal: canal, ids: ids,
-        motivos: recMotivos, plataformas: recPlataforma ? [recPlataforma] : [],
-        tudo: recTudo
-      })
+      body: JSON.stringify(Object.assign({ venda_id: p.venda_id }, corpo))
     });
     var d = await r.json();
 
     if(d.ok){
-      res.innerHTML = '<div class="alerta-caixa">✅ ' + numero(d.enviados)
-        + ' enviados por ' + (canal === 'email' ? 'e-mail' : 'WhatsApp')
-        + (d.falhas ? ' · ' + numero(d.falhas) + ' falharam' : '')
-        + (d.aviso ? ' · ' + esc(d.aviso) : '')
-        + (d.primeiro_erro
-            ? '<div style="margin-top:6px;font-size:12px">'
-              + esc(d.primeiro_erro) + '</div>' : '')
-        + '</div>';
-      setTimeout(carregarRecuperacao, 2000);
+      if(res) res.textContent = aviso;
     } else {
-      res.innerHTML = '<div class="alerta-caixa perigo">'
-        + esc(d.erro || 'falhou') + '</div>';
+      if(res) res.innerHTML = '<span style="color:var(--negativo)">'
+        + esc(d.erro || 'não salvou') + '</span>';
     }
   }catch(e){
-    res.innerHTML = '<div class="alerta-caixa perigo">' + esc(e.message)
+    if(res) res.innerHTML = '<span style="color:var(--negativo)">'
+      + esc(e.message) + '</span>';
+  }
+}
+
+function salvarStatus(i, valor){
+  var p = (recDados.lista || [])[i];
+  if(!p) return;
+  p.status = valor;
+  gravarNotaCampo(i, { status: valor }, 'status salvo');
+}
+
+function salvarNota(i){
+  var el = document.getElementById('nota-' + i);
+  var p = (recDados.lista || [])[i];
+  if(!el || !p) return;
+  if((p.nota || '') === el.value) return;   // não gravou nada novo
+  p.nota = el.value;
+  gravarNotaCampo(i, { nota: el.value },
+                  el.value ? 'anotado agora' : 'nota apagada');
+}
+
+function copiarMensagem(i){
+  var p = (recDados.lista || [])[i];
+  if(!p || !p.mensagem) return;
+  navigator.clipboard.writeText(p.mensagem)
+    .then(function(){ mostrarToast('Mensagem copiada'); })
+    .catch(function(){ mostrarToast('Não deu para copiar'); });
+}
+
+// ---------------------------------------------------------------------
+// AS MENSAGENS PRONTAS
+//
+// Uma por motivo. PIX aguardando e boleto vencido não podem receber o
+// mesmo texto: num a pessoa está dentro do prazo, no outro perdeu.
+// ---------------------------------------------------------------------
+var recMensagens = [];
+var recVariaveis = [];
+var recMsgAberto = false;
+
+/**
+ * O editor nasce fechado.
+ *
+ * São dezesseis textos, uns quatro mil pixels de altura. É ajuste que
+ * se faz uma vez; deixar aberto empurra a lista de quem chamar — que é
+ * o trabalho do dia — para fora da tela.
+ */
+function alternarMensagensRec(){
+  recMsgAberto = !recMsgAberto;
+  document.getElementById('rec-mensagens').style.display =
+    recMsgAberto ? '' : 'none';
+  document.getElementById('bt-msg-abrir').textContent =
+    recMsgAberto ? 'Fechar' : 'Editar os textos';
+  if(recMsgAberto && !recMensagens.length) carregarMensagensRec();
+}
+
+async function carregarMensagensRec(){
+  var alvo = document.getElementById('rec-mensagens');
+  if(!alvo) return;
+
+  alvo.innerHTML = '<div class="carregando">Carregando…</div>';
+
+  var d;
+  try{ d = await api('/api/mensagens-recuperacao'); }
+  catch(e){
+    alvo.innerHTML = '<div class="alerta-caixa perigo">' + esc(e.message)
+      + '</div>';
+    return;
+  }
+
+  if(!d.ok){
+    alvo.innerHTML = '<div class="alerta-caixa perigo">'
+      + esc(d.erro || 'falhou') + '</div>';
+    return;
+  }
+
+  recMensagens = d.mensagens || [];
+  recVariaveis = d.variaveis || [];
+
+  // com o editor fechado, o resumo é o que diz que os textos existem e
+  // quantos foram ajustados pela equipe
+  var editados = recMensagens.filter(function(m){ return m.atualizado_por; });
+  var resumo = document.getElementById('rec-msg-resumo');
+  if(resumo){
+    resumo.innerHTML =
+      '<div style="font-size:13px;color:var(--texto-2);line-height:1.55">'
+      + numero(recMensagens.length) + ' textos prontos, um por motivo — é o '
+      + 'que o botão <b>Chamar</b> leva para o WhatsApp.'
+      + (editados.length
+          ? ' ' + numero(editados.length) + ' já foram ajustados por vocês.'
+          : ' Nenhum foi ajustado ainda: estão no texto padrão.')
       + '</div>';
   }
 
-  b.disabled = false; b.textContent = rotulo;
+  alvo.innerHTML =
+    '<p style="font-size:13px;color:var(--texto-2);line-height:1.55;'
+    + 'margin-bottom:14px">Estes são os textos que o botão Chamar leva '
+    + 'para o WhatsApp. Edite como quiser — o que você salva aqui vale '
+    + 'para todos os leads daquele motivo.</p>'
+
+    + '<div class="int-rotulo">Pedaços que a dash preenche</div>'
+    + '<div style="margin-bottom:16px">'
+    + recVariaveis.map(function(v){
+        return '<button class="var-chip" onclick="colarVariavel('
+          + JSON.stringify(v.chave).replace(/'/g,'&#39;') + ')" '
+          + 'title="' + esc(v.o_que_e) + '">' + esc(v.chave) + '</button>';
+      }).join('')
+    + '<div class="sub">Clique para copiar. Se um deles vier vazio, a dash '
+    + 'ajusta a frase em volta — nome vazio não vira "Oi !".</div>'
+    + '</div>'
+
+    + recMensagens.map(function(m, i){
+        return '<div style="margin-bottom:18px;padding-bottom:16px;'
+          + 'border-bottom:1px solid var(--borda)">'
+          + '<div style="display:flex;gap:8px;align-items:center;'
+          + 'margin-bottom:5px;flex-wrap:wrap">'
+          + '<span class="rec-ponto ' + esc(m.urgencia) + '"></span>'
+          + '<b style="font-size:13.5px">' + esc(m.rotulo) + '</b>'
+          + (m.atualizado_por
+              ? '<span class="sub">editado por ' + esc(m.atualizado_por)
+                + '</span>'
+              : '<span class="sub">texto padrão</span>')
+          + '</div>'
+          + '<div class="rec-acao">' + esc(m.acao) + '</div>'
+          + '<textarea class="campo" id="msg-' + i + '" rows="4" '
+          + 'style="margin-top:8px;font-size:13px;line-height:1.5" '
+          + 'oninput="verPrevia(' + i + ')">' + esc(m.texto) + '</textarea>'
+          + '<div class="sub" style="margin-top:6px">Como fica: '
+          + '<span id="prev-' + i + '">' + esc(m.exemplo || '(vazio)')
+          + '</span></div>'
+          + '<button class="mini" style="margin-top:8px" '
+          + 'onclick="salvarMensagemRec(' + i + ')">Salvar</button>'
+          + '<span id="res-msg-' + i + '" style="margin-left:8px;'
+          + 'font-size:12px"></span>'
+          + '</div>';
+      }).join('');
+}
+
+/**
+ * Prévia enquanto digita.
+ *
+ * Feita aqui e não no servidor para o texto responder na hora. A regra
+ * de nome vazio é a mesma do banco — se as duas discordarem, quem manda
+ * é o banco, que é o que vai para o WhatsApp.
+ */
+function verPrevia(i){
+  var el = document.getElementById('prev-' + i);
+  var ta = document.getElementById('msg-' + i);
+  if(!el || !ta) return;
+
+  var t = ta.value || '';
+  t = t.replace(/\{primeiro_nome\}/g, 'João')
+       .replace(/\{nome\}/g, 'João da Silva')
+       .replace(/\{produto\}/g, 'Perito da Elétrica')
+       .replace(/\{valor\}/g, 'R$ 1.997,00')
+       .replace(/\{dias\}/g, '3');
+
+  el.textContent = t.trim() || '(vazio — o botão Chamar abre a conversa '
+    + 'sem mensagem)';
+}
+
+function colarVariavel(v){
+  navigator.clipboard.writeText(v)
+    .then(function(){ mostrarToast(v + ' copiado'); })
+    .catch(function(){ mostrarToast('Não deu para copiar'); });
+}
+
+async function salvarMensagemRec(i){
+  var m = recMensagens[i];
+  var ta = document.getElementById('msg-' + i);
+  var res = document.getElementById('res-msg-' + i);
+  if(!m || !ta) return;
+
+  res.innerHTML = 'salvando…';
+
+  try{
+    var r = await fetch(API + '/api/mensagens-recuperacao?lancamento='
+                        + encodeURIComponent(lancamentoAtual), {
+      method:'POST',
+      headers:{'Content-Type':'application/json',
+               Authorization:'Bearer ' + sessao.token},
+      body: JSON.stringify({ motivo: m.motivo, texto: ta.value })
+    });
+    var d = await r.json();
+
+    if(d.ok){
+      res.innerHTML = '<span style="color:var(--positivo)">✅ salvo</span>';
+      m.texto = ta.value;
+      // a lista precisa recarregar: a mensagem dela vem preenchida do banco
+      carregarRecuperacao();
+      setTimeout(function(){ res.innerHTML = ''; }, 2500);
+    } else {
+      res.innerHTML = '<span style="color:var(--negativo)">'
+        + esc(d.erro || 'falhou') + '</span>';
+    }
+  }catch(e){
+    res.innerHTML = '<span style="color:var(--negativo)">'
+      + esc(e.message) + '</span>';
+  }
 }
 
 // ---------------------------------------------------------------------
