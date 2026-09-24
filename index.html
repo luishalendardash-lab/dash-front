@@ -581,6 +581,44 @@ tr.queimando td:first-child{box-shadow:inset 3px 0 0 #C4571F}
   padding:2px 5px;border-radius:5px;
 }
 .bloco-acao:hover{background:var(--vidro);color:var(--texto)}
+/* ---- Recuperação de vendas ----
+   O chip de motivo é filtro e indicador ao mesmo tempo: a cor conta a
+   urgência, o número conta quantas pessoas. Sem isso o cliente precisa
+   ler a tabela inteira para saber onde está o dinheiro mais quente. */
+.rec-chip{
+  display:inline-flex;align-items:center;gap:7px;cursor:pointer;
+  background:var(--vidro-solido);border:1px solid var(--borda);
+  border-radius:9px;padding:7px 11px;font-size:12.5px;
+  /* botão não herda cor: sem isto o texto fica preto sobre o chip
+     escuro e não se lê nada no tema escuro */
+  color:var(--texto);font-family:inherit;
+  transition:border-color .15s, background .15s;
+}
+.rec-chip:hover{border-color:var(--borda-forte)}
+.rec-chip.on{border-color:var(--destaque);background:var(--destaque-bg)}
+.rec-chip .n{
+  font-family:var(--mono);font-size:11.5px;color:var(--texto-2);
+  background:var(--vidro);border-radius:5px;padding:1px 5px;
+}
+.rec-chip.on .n{color:var(--destaque)}
+.rec-ponto{
+  width:7px;height:7px;border-radius:50%;flex-shrink:0;
+  background:var(--texto-3);
+}
+.rec-ponto.alta{background:var(--negativo)}
+.rec-ponto.media{background:var(--destaque)}
+.rec-ponto.baixa{background:var(--texto-3)}
+.rec-acao{
+  font-size:12px;color:var(--texto-2);line-height:1.5;margin-top:3px;
+}
+.rec-tent{
+  background:var(--fundo-2);font-size:12px;
+}
+.rec-tent td{padding-top:6px;padding-bottom:6px}
+.rec-abrir{
+  background:none;border:none;color:var(--destaque);cursor:pointer;
+  font-size:11.5px;padding:0;text-decoration:underline;
+}
 .var-chip{
   display:inline-block;background:var(--vidro-solido);border:1px solid var(--borda);
   border-radius:7px;padding:4px 9px;margin:0 5px 5px 0;font-family:var(--mono);
@@ -1433,13 +1471,6 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
         <div id="resultado-lancamento"></div>
       </section>
 
-      <section class="painel" id="painel-pendentes-pgto" style="display:none">
-        <div class="painel-topo">
-          <div class="painel-titulo"><span class="emoji">⏳</span> Pagamentos pendentes</div>
-          <button class="btn" onclick="carregarPagamentosPendentes()">Atualizar</button>
-        </div>
-        <div id="lista-pendentes-pgto"></div>
-      </section>
 
       <section class="painel">
         <div class="painel-topo">
@@ -1503,6 +1534,45 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
      </div>
 
      <!-- ============ LEADS ============ -->
+     <div class="tela" id="tela-recuperacao">
+
+      <section class="painel">
+        <div class="painel-topo">
+          <div class="painel-titulo"><span class="emoji">💸</span>
+            Recuperação de vendas</div>
+          <button class="btn" onclick="carregarRecuperacao()">Atualizar</button>
+        </div>
+        <div id="rec-topo"></div>
+      </section>
+
+      <section class="painel">
+        <div class="painel-topo">
+          <div class="painel-titulo"><span class="emoji">🎯</span>
+            Por motivo</div>
+        </div>
+        <div id="rec-motivos"></div>
+      </section>
+
+      <section class="painel">
+        <div class="painel-topo">
+          <div class="painel-titulo"><span class="emoji">📋</span>
+            Quem está em aberto</div>
+        </div>
+        <div id="rec-lista"></div>
+      </section>
+
+      <section class="painel">
+        <div class="painel-topo">
+          <div class="painel-titulo"><span class="emoji">🏦</span>
+            Financiamento — clicou e não começou</div>
+          <button class="btn" onclick="carregarCliquesFinanciamento()">
+            Atualizar</button>
+        </div>
+        <div id="rec-financiamento"></div>
+      </section>
+
+     </div>
+
      <div class="tela" id="tela-leads">
       <section class="painel" id="painel-recorrencia" style="display:none">
         <div class="painel-topo">
@@ -1546,6 +1616,7 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
       <button class="nav-item" onclick="irPara('anuncios',this)"><span class="ico">📣</span> Anúncios</button>
       <button class="nav-item" onclick="irPara('aulas',this)"><span class="ico">🎥</span> Aulas</button>
       <button class="nav-item" onclick="irPara('vendas',this)"><span class="ico">🛒</span> Vendas</button>
+      <button class="nav-item" onclick="irPara('recuperacao',this)"><span class="ico">💸</span> Recuperação</button>
       <div class="nav-titulo">Ferramentas</div>
       <button class="nav-item" onclick="irPara('quiz',this)"><span class="ico">🧩</span> Quiz</button>
       <button class="nav-item" onclick="irPara('email',this)"><span class="ico">✉️</span> Gerador de e-mail</button>
@@ -1792,7 +1863,10 @@ function trocarLancamento(){
   else if(telaAtual === 'anuncios'){ carregarAnuncios(); if(gastoMetaAberto) carregarGastoMeta(); }
   else if(telaAtual === 'quiz') carregarQuiz();
   else if(telaAtual === 'vendas'){
-    carregarResultado(); carregarPagamentosPendentes(); carregarVendas();
+    carregarResultado(); carregarVendas();
+  }
+  else if(telaAtual === 'recuperacao'){
+    carregarRecuperacao(); carregarCliquesFinanciamento();
   }
   else if(telaAtual === 'faturamento') carregarFaturamento();
   else if(telaAtual === 'aulas') carregarAulas();
@@ -2028,7 +2102,10 @@ function irPara(tela, el){
   if(tela === 'exportar') carregarExportar();
   if(tela === 'conteudo') carregarConteudo();
   if(tela === 'vendas'){
-    carregarResultado(); carregarPagamentosPendentes(); carregarVendas();
+    carregarResultado(); carregarVendas();
+  }
+  if(tela === 'recuperacao'){
+    carregarRecuperacao(); carregarCliquesFinanciamento();
   }
   if(tela === 'faturamento') carregarFaturamento();
   if(tela === 'integracoes'){ carregarIntegracoes(); carregarEventosMeta(); }
@@ -6365,145 +6442,515 @@ async function salvarContasMeta(){
 // PIX e boleto gerados que ainda não foram pagos. Quem já pagou o mesmo
 // produto por outro meio não aparece: o cruzamento é por e-mail e
 // produto, não pelo status da transação isolada.
-var pendentesPgto = [];
+// ================= RECUPERAÇÃO DE VENDAS =================
+//
+// Venda que não fechou e ainda dá para salvar. "Pendente" não bastava:
+// PIX gerado há dez minutos, boleto vencido há três semanas e
+// financiamento parado na documentação são três conversas diferentes,
+// e antes disto a dash mostrava os três como a mesma coisa.
+//
+// Duas regras sustentam a tela:
+//
+//   quem acabou comprando não aparece — o cruzamento com as vendas
+//   aprovadas é feito no banco, por pessoa e produto, porque ligar para
+//   quem já pagou é pior do que não ligar;
+//
+//   uma linha por pessoa e por produto — quem tentou três vezes aparece
+//   uma vez, com as outras tentativas dentro da linha. Senão o cliente
+//   liga três vezes e o "dinheiro na mesa" conta o mesmo cliente duas.
 
-async function carregarPagamentosPendentes(){
-  var painel = document.getElementById('painel-pendentes-pgto');
-  if(!painel) return;
+var recDados = null;
+var recMotivos = [];       // motivos marcados no filtro
+var recPlataforma = '';
+var recSoTelefone = false;
+var recTudo = true;
+var recAbertas = {};       // linhas expandidas
+
+async function carregarRecuperacao(){
+  var topo = document.getElementById('rec-topo');
+  if(!topo) return;
+
+  topo.innerHTML = '<div class="carregando">Carregando…</div>';
+  document.getElementById('rec-motivos').innerHTML = '';
+  document.getElementById('rec-lista').innerHTML = '';
+
+  var qs = '/api/recuperacao?lancamento=' + encodeURIComponent(lancamentoAtual)
+    + '&tudo=' + (recTudo ? 'true' : 'false')
+    + (recMotivos.length ? '&motivos=' + encodeURIComponent(recMotivos.join(',')) : '')
+    + (recPlataforma ? '&plataformas=' + encodeURIComponent(recPlataforma) : '')
+    + (recSoTelefone ? '&so_com_telefone=true' : '');
 
   var d;
-  try{
-    d = await api('/api/pendentes?lancamento='+encodeURIComponent(lancamentoAtual));
-  }catch(e){ painel.style.display = 'none'; return; }
-
-  if(!d.ok || !Number(d.resumo && d.resumo.quantidade)){
-    painel.style.display = 'none';
+  try{ d = await api(qs); }
+  catch(e){
+    topo.innerHTML = '<div class="alerta-caixa perigo">' + esc(e.message) + '</div>';
     return;
   }
 
-  painel.style.display = '';
-  pendentesPgto = d.pendentes || [];
-  var r = d.resumo;
+  if(!d.ok){
+    topo.innerHTML = '<div class="alerta-caixa perigo">'
+      + esc(d.erro || 'falhou') + '</div>';
+    return;
+  }
 
-  document.getElementById('lista-pendentes-pgto').innerHTML =
-    '<div class="metricas" style="margin-bottom:16px">'
-    + [['⏳ Aguardando', numero(r.quantidade), ''],
-       ['💰 Valor em aberto', moeda(r.valor_total), 'se todos pagarem'],
-       ['📧 Com e-mail', numero(r.com_email), ''],
-       ['📱 Com WhatsApp', numero(r.com_telefone), ''],
-       ['⚡ Engenheiros', numero(r.engenheiros), '']]
+  recDados = d;
+  desenharRecTopo();
+  desenharRecMotivos();
+  desenharRecLista();
+}
+
+function desenharRecTopo(){
+  var t = recDados.total || {};
+
+  document.getElementById('rec-topo').innerHTML =
+    '<div class="metricas">'
+    + [['💸 Dinheiro em aberto', moeda(t.valor),
+        numero(t.quantos) + ' pessoa(s)'],
+       ['🎯 Vale abordagem', moeda(t.valor_recuperavel),
+        numero(t.quantos_recuperaveis) + ' pessoa(s)'],
+       ['📱 Com WhatsApp', numero(t.com_telefone),
+        t.sem_contato ? numero(t.sem_contato) + ' sem nenhum contato' : ''],
+       ['🔁 Tentativas de pagamento', numero(t.tentativas),
+        'atrás dessas pessoas']]
       .map(function(x){
-        return '<div class="metrica"><div class="rot">'+x[0]+'</div>'
-             + '<div class="num">'+x[1]+'</div>'
-             + (x[2] ? '<div class="pe">'+x[2]+'</div>' : '')+'</div>';
+        return '<div class="metrica"><div class="rot">' + x[0] + '</div>'
+          + '<div class="num">' + x[1] + '</div>'
+          + (x[2] ? '<div class="pe">' + x[2] + '</div>' : '') + '</div>';
       }).join('')
     + '</div>'
 
-    + '<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">'
-    + '<button class="mini" onclick="marcarTodosPendentes(true)">Marcar todos</button>'
-    + '<button class="mini" onclick="marcarTodosPendentes(false)">Desmarcar</button>'
-    + '<span id="soma-pendentes" style="font-size:13px;color:var(--texto-2)"></span>'
+    // ---- webhook de abandono não assinado na Hotmart: sem este aviso
+    //      o cliente olha a tela, não vê abandono e conclui que não
+    //      existe abandono
+    + (recDados.aviso
+        ? '<div class="alerta-caixa" style="margin-top:12px">⚠️ '
+          + esc(recDados.aviso) + '</div>'
+        : '')
+
+    + '<div class="nota-tabela" style="margin-top:12px">'
+    + 'Quem acabou comprando <b>não está aqui</b>, mesmo tendo gerado '
+    + 'boleto antes: o cruzamento com as vendas aprovadas é por pessoa e '
+    + 'produto. "Vale abordagem" tira chargeback e reembolso, que não se '
+    + 'recuperam com mensagem.</div>';
+}
+
+function desenharRecMotivos(){
+  var motivos = recDados.por_motivo || [];
+  var op = (recDados.opcoes || {});
+  var plats = op.plataformas || [];
+
+  if(!motivos.length){
+    document.getElementById('rec-motivos').innerHTML =
+      '<div class="alerta-caixa">Nenhuma venda em aberto neste lançamento. '
+      + 'Se você esperava ver algo aqui, confira em Integrações se os '
+      + 'webhooks da Hotmart e da TMB estão chegando.</div>';
+    return;
+  }
+
+  document.getElementById('rec-motivos').innerHTML =
+    // ---- os chips: filtro e panorama ao mesmo tempo
+    '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">'
+    + motivos.map(function(m){
+        var on = recMotivos.indexOf(m.motivo) >= 0;
+        return '<button class="rec-chip' + (on ? ' on' : '') + '" '
+          + 'onclick="alternarMotivo(' + JSON.stringify(m.motivo) + ')" '
+          + 'title="' + esc(m.acao) + '">'
+          + '<span class="rec-ponto ' + esc(m.urgencia) + '"></span>'
+          + '<span>' + esc(m.rotulo) + '</span>'
+          + '<span class="n">' + numero(m.quantos) + '</span>'
+          + '<span class="n">' + moeda(m.valor) + '</span>'
+          + '</button>';
+      }).join('')
+    + '</div>'
+
+    // ---- os outros filtros
+    + '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;'
+    + 'margin-bottom:14px">'
+
+    + '<select class="campo" style="width:auto" onchange="recTrocarPlataforma(this.value)">'
+    + '<option value=""' + (recPlataforma ? '' : ' selected') + '>'
+    + 'Todas as plataformas</option>'
+    + plats.map(function(p){
+        return '<option value="' + esc(p.valor) + '"'
+          + (recPlataforma === p.valor ? ' selected' : '') + '>'
+          + esc(p.valor) + ' (' + numero(p.quantos) + ')</option>';
+      }).join('')
+    + '</select>'
+
+    + '<label style="display:flex;gap:6px;align-items:center;font-size:12.5px;'
+    + 'cursor:pointer">'
+    + '<input type="checkbox" style="width:auto;margin:0"'
+    + (recSoTelefone ? ' checked' : '')
+    + ' onchange="recSoTelefone=this.checked;carregarRecuperacao()">'
+    + 'Só quem tem WhatsApp</label>'
+
+    + '<label style="display:flex;gap:6px;align-items:center;font-size:12.5px;'
+    + 'cursor:pointer">'
+    + '<input type="checkbox" style="width:auto;margin:0"'
+    + (recTudo ? '' : ' checked')
+    + ' onchange="recTudo=!this.checked;carregarRecuperacao()">'
+    + 'Só o período do carrinho</label>'
+
+    + (recMotivos.length
+        ? '<button class="mini" onclick="recMotivos=[];carregarRecuperacao()">'
+          + 'Limpar filtro de motivo</button>'
+        : '')
+    + '</div>'
+
+    // ---- o que fazer em cada caso, para a tela não ser só uma lista
+    + '<div class="rolagem"><table><thead><tr>'
+    + '<th>Motivo</th><th class="num-td">Pessoas</th>'
+    + '<th class="num-td">Valor</th><th>O que fazer</th>'
+    + '</tr></thead><tbody>'
+    + motivos.map(function(m){
+        return '<tr>'
+          + '<td><span class="rec-ponto ' + esc(m.urgencia) + '" '
+          + 'style="display:inline-block;margin-right:6px"></span>'
+          + esc(m.rotulo)
+          + (m.recuperavel === false
+              ? ' <span class="pilula" style="font-size:10px">só registro</span>'
+              : '')
+          + '</td>'
+          + '<td class="num-td">' + numero(m.quantos)
+          + (m.com_telefone != null && m.com_telefone < m.quantos
+              ? '<div class="sub">' + numero(m.com_telefone) + ' com zap</div>'
+              : '')
+          + '</td>'
+          + '<td class="num-td">' + moeda(m.valor) + '</td>'
+          + '<td style="font-size:12.5px;color:var(--texto-2)">'
+          + esc(m.acao) + '</td>'
+          + '</tr>';
+      }).join('')
+    + '</tbody></table></div>';
+}
+
+function alternarMotivo(m){
+  var i = recMotivos.indexOf(m);
+  if(i >= 0) recMotivos.splice(i, 1); else recMotivos.push(m);
+  carregarRecuperacao();
+}
+
+function recTrocarPlataforma(v){
+  recPlataforma = v;
+  carregarRecuperacao();
+}
+
+function desenharRecLista(){
+  var lista = recDados.lista || [];
+  var alvo = document.getElementById('rec-lista');
+
+  if(!lista.length){
+    alvo.innerHTML = '<div class="alerta-caixa">'
+      + (recMotivos.length || recPlataforma || recSoTelefone
+          ? 'Nenhuma pessoa com esses filtros.'
+          : 'Nada em aberto.')
+      + '</div>';
+    return;
+  }
+
+  alvo.innerHTML =
+    '<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;'
+    + 'align-items:center">'
+    + '<button class="mini" onclick="marcarTodosRec(true)">Marcar todos</button>'
+    + '<button class="mini" onclick="marcarTodosRec(false)">Desmarcar</button>'
+    + '<span id="rec-soma" style="font-size:13px;color:var(--texto-2)"></span>'
     + '<div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">'
-    + '<button class="btn" onclick="enviarRecuperacao(\'email\')" id="btn-rec-email">'
+    + '<button class="btn" onclick="enviarRec(\'email\')" id="bt-rec-email">'
     + '📧 Enviar por e-mail</button>'
-    + '<button class="btn principal" onclick="enviarRecuperacao(\'whatsapp\')" '
-    + 'id="btn-rec-zap">📱 Enviar por WhatsApp</button>'
+    + '<button class="btn principal" onclick="enviarRec(\'whatsapp\')" '
+    + 'id="bt-rec-zap">📱 Enviar por WhatsApp</button>'
     + '</div></div>'
 
     + '<div class="rolagem"><table><thead><tr>'
-    + '<th style="width:34px"></th><th>Pessoa</th><th>Produto</th>'
-    + '<th class="num-td">Valor</th><th>Forma</th>'
-    + '<th class="num-td">Esperando</th><th>Já enviado</th>'
+    + '<th style="width:34px"></th><th>Pessoa</th><th>Motivo</th>'
+    + '<th class="num-td">Valor</th><th>Plataforma</th>'
+    + '<th class="num-td">Parado há</th><th>Já enviado</th>'
     + '</tr></thead><tbody>'
-    + pendentesPgto.map(function(p, i){
+    + lista.map(function(p, i){
         var enviados = p.ja_enviado || [];
-        return '<tr>'
-          + '<td><input type="checkbox" class="pend-item" data-id="'+esc(p.venda_id)+'"'
-          + ' data-valor="'+(p.valor||0)+'" checked onchange="somarPendentes()"'
-          + ' style="width:auto;margin:0"></td>'
-          + '<td><div style="font-weight:500">'+esc(p.nome || p.email || '—')
-          + (p.engenheiro ? ' <span class="pilula" style="font-size:10px">eng</span>' : '')
+        var linhas = '<tr>'
+          + '<td><input type="checkbox" class="rec-item" '
+          + 'data-id="' + esc(p.venda_id) + '" '
+          + 'data-valor="' + (p.valor || 0) + '" '
+          + (p.recuperavel === false ? '' : 'checked ')
+          + 'onchange="somarRec()" style="width:auto;margin:0"></td>'
+
+          + '<td><div style="font-weight:500">'
+          + esc(p.nome || p.email || '—')
+          + (p.engenheiro
+              ? ' <span class="pilula" style="font-size:10px">eng</span>' : '')
           + '</div>'
-          + '<div class="sub">'+esc(p.email || '')
-          + (p.telefone ? ' · '+esc(p.telefone) : '')+'</div></td>'
-          + '<td style="font-size:12.5px">'+esc(p.produto)+'</td>'
-          + '<td class="num-td">'+moeda(p.valor)+'</td>'
-          + '<td><span class="pilula">'+esc(p.metodo || '—')+'</span></td>'
-          + '<td class="num-td"'+(p.dias >= 3 ? ' style="color:var(--destaque)"' : '')+'>'
-          + (p.dias === 0 ? 'hoje' : p.dias + (p.dias === 1 ? ' dia' : ' dias'))+'</td>'
-          + '<td>'+(enviados.length
+          + '<div class="sub">' + esc(p.email || 'sem e-mail')
+          + (p.telefone ? ' · ' + esc(p.telefone)
+                        : ' · <b>sem telefone</b>') + '</div>'
+          + (p.comprou_outro
+              ? '<div class="sub" style="color:var(--destaque)">'
+                + 'já comprou outro produto</div>' : '')
+          + '</td>'
+
+          + '<td><span class="rec-ponto ' + esc(p.urgencia) + '" '
+          + 'style="display:inline-block;margin-right:6px"></span>'
+          + esc(p.rotulo)
+          + '<div class="sub" title="status que a plataforma mandou">'
+          + esc(p.situacao || p.status) + '</div>'
+          + (Number(p.tentativas) > 1
+              ? '<button class="rec-abrir" onclick="abrirTentativas(' + i + ')">'
+                + (recAbertas[i] ? 'esconder' : Number(p.tentativas)
+                   + ' tentativas') + '</button>'
+              : '')
+          + '</td>'
+
+          + '<td class="num-td">' + moeda(p.valor) + '</td>'
+          + '<td><span class="pilula">' + esc(p.plataforma) + '</span></td>'
+          + '<td class="num-td"'
+          + (p.dias >= 3 ? ' style="color:var(--destaque)"' : '') + '>'
+          + (p.dias === 0 ? 'hoje'
+             : p.dias + (p.dias === 1 ? ' dia' : ' dias')) + '</td>'
+          + '<td>' + (enviados.length
               ? enviados.map(function(c){
-                  return '<span class="pilula" style="font-size:10.5px">'+esc(c)+'</span>';
+                  return '<span class="pilula" style="font-size:10.5px">'
+                    + esc(c) + '</span>';
                 }).join(' ')
-              : '<span style="color:var(--texto-3)">—</span>')+'</td>'
+              : '<span style="color:var(--texto-3)">—</span>') + '</td>'
           + '</tr>';
+
+        // ---- as outras tentativas da mesma pessoa, quando abertas
+        if(recAbertas[i] && (p.outras || []).length){
+          linhas += p.outras.map(function(o){
+            return '<tr class="rec-tent"><td></td>'
+              + '<td colspan="2" style="color:var(--texto-2)">'
+              + '↳ ' + esc(o.rotulo)
+              + ' <span class="sub" style="display:inline">'
+              + esc(o.situacao || '') + '</span></td>'
+              + '<td class="num-td">' + moeda(o.valor) + '</td>'
+              + '<td><span class="pilula">' + esc(o.plataforma) + '</span></td>'
+              + '<td class="num-td">' + numero(o.dias) + 'd</td>'
+              + '<td></td></tr>';
+          }).join('');
+        }
+
+        return linhas;
       }).join('')
     + '</tbody></table></div>'
-    + '<div id="res-recuperacao" style="margin-top:12px"></div>'
-    + '<div class="nota-tabela">Quem gerou boleto e pagou por PIX depois não aparece aqui: '
-    + 'o cruzamento é por e-mail e produto. Quem já recebeu nas últimas 24 horas não '
-    + 'recebe de novo, mesmo marcado.</div>';
 
-  somarPendentes();
+    + '<div id="rec-res" style="margin-top:12px"></div>'
+    + '<div class="nota-tabela">'
+    + 'Chargeback e reembolso vêm desmarcados e nunca entram no disparo, '
+    + 'mesmo marcados: cobrar quem contestou no cartão rende reclamação. '
+    + 'Quem já recebeu nas últimas 24 horas também não recebe de novo.'
+    + (recDados.lista.length >= (recDados.limite || 500)
+        ? ' Mostrando os ' + numero(recDados.limite) + ' mais urgentes.'
+        : '')
+    + '</div>';
+
+  somarRec();
 }
 
-function marcarTodosPendentes(valor){
-  document.querySelectorAll('.pend-item').forEach(function(c){ c.checked = valor; });
-  somarPendentes();
+function abrirTentativas(i){
+  recAbertas[i] = !recAbertas[i];
+  desenharRecLista();
 }
 
-function somarPendentes(){
+function marcarTodosRec(v){
+  document.querySelectorAll('.rec-item').forEach(function(c){ c.checked = v; });
+  somarRec();
+}
+
+function somarRec(){
   var total = 0, n = 0;
-  document.querySelectorAll('.pend-item:checked').forEach(function(c){
+  document.querySelectorAll('.rec-item:checked').forEach(function(c){
     total += Number(c.getAttribute('data-valor') || 0);
     n++;
   });
-  var el = document.getElementById('soma-pendentes');
-  if(el) el.innerHTML = n + ' marcado(s) · <b>'+moeda(total)+'</b>';
+  var el = document.getElementById('rec-soma');
+  if(el) el.innerHTML = n + ' marcado(s) · <b>' + moeda(total) + '</b>';
 }
 
-async function enviarRecuperacao(canal){
+async function enviarRec(canal){
   var ids = [];
-  document.querySelectorAll('.pend-item:checked').forEach(function(c){
+  document.querySelectorAll('.rec-item:checked').forEach(function(c){
     ids.push(c.getAttribute('data-id'));
   });
 
-  var res = document.getElementById('res-recuperacao');
+  var res = document.getElementById('rec-res');
   if(!ids.length){
     res.innerHTML = '<div class="alerta-caixa">Marque quem deve receber.</div>';
     return;
   }
 
-  var b = document.getElementById(canal === 'email' ? 'btn-rec-email' : 'btn-rec-zap');
+  var b = document.getElementById(
+    canal === 'email' ? 'bt-rec-email' : 'bt-rec-zap');
   var rotulo = b.textContent;
   b.disabled = true; b.textContent = 'Enviando…';
 
   try{
-    var r = await fetch(API + '/api/recuperar?lancamento='
+    var r = await fetch(API + '/api/recuperar-motivo?lancamento='
                         + encodeURIComponent(lancamentoAtual), {
       method:'POST',
-      headers:{'Content-Type':'application/json', Authorization:'Bearer '+sessao.token},
-      body: JSON.stringify({ canal: canal, ids: ids })
+      headers:{'Content-Type':'application/json',
+               Authorization:'Bearer ' + sessao.token},
+      body: JSON.stringify({
+        canal: canal, ids: ids,
+        motivos: recMotivos, plataformas: recPlataforma ? [recPlataforma] : [],
+        tudo: recTudo
+      })
     });
     var d = await r.json();
 
     if(d.ok){
-      res.innerHTML = '<div class="alerta-caixa">✅ '+numero(d.enviados)+' enviados por '
-        + (canal === 'email' ? 'e-mail' : 'WhatsApp')
-        + (d.falhas ? ' · '+numero(d.falhas)+' falharam' : '')
-        + (d.aviso ? ' · '+esc(d.aviso) : '')
-        + (d.primeiro_erro ? '<div style="margin-top:6px;font-size:12px">'
-            + esc(d.primeiro_erro)+'</div>' : '')
+      res.innerHTML = '<div class="alerta-caixa">✅ ' + numero(d.enviados)
+        + ' enviados por ' + (canal === 'email' ? 'e-mail' : 'WhatsApp')
+        + (d.falhas ? ' · ' + numero(d.falhas) + ' falharam' : '')
+        + (d.aviso ? ' · ' + esc(d.aviso) : '')
+        + (d.primeiro_erro
+            ? '<div style="margin-top:6px;font-size:12px">'
+              + esc(d.primeiro_erro) + '</div>' : '')
         + '</div>';
-      setTimeout(carregarPagamentosPendentes, 2000);
+      setTimeout(carregarRecuperacao, 2000);
     } else {
-      res.innerHTML = '<div class="alerta-caixa perigo">'+esc(d.erro||'falhou')+'</div>';
+      res.innerHTML = '<div class="alerta-caixa perigo">'
+        + esc(d.erro || 'falhou') + '</div>';
     }
   }catch(e){
-    res.innerHTML = '<div class="alerta-caixa perigo">'+esc(e.message)+'</div>';
+    res.innerHTML = '<div class="alerta-caixa perigo">' + esc(e.message)
+      + '</div>';
   }
 
   b.disabled = false; b.textContent = rotulo;
+}
+
+// ---------------------------------------------------------------------
+// FINANCIAMENTO: QUEM CLICOU E NÃO COMEÇOU
+//
+// A TMB só cria pedido quando a pessoa termina o cadastro. Quem clicou
+// e desistiu antes disso não existe em nenhuma API dela — a única forma
+// de saber é a dash contar o clique.
+//
+// Por isso o link precisa passar pelo /r/tmb da dash. Com o link da TMB
+// direto, esta lista fica vazia para sempre.
+// ---------------------------------------------------------------------
+async function carregarCliquesFinanciamento(){
+  var alvo = document.getElementById('rec-financiamento');
+  if(!alvo) return;
+
+  alvo.innerHTML = '<div class="carregando">Carregando…</div>';
+
+  var d;
+  try{ d = await api('/api/financiamento-cliques?lancamento='
+                     + encodeURIComponent(lancamentoAtual)); }
+  catch(e){
+    alvo.innerHTML = '<div class="alerta-caixa perigo">' + esc(e.message)
+      + '</div>';
+    return;
+  }
+
+  if(!d.ok){
+    alvo.innerHTML = '<div class="alerta-caixa perigo">'
+      + esc(d.erro || 'falhou') + '</div>';
+    return;
+  }
+
+  var r = d.resumo || {};
+  var lista = d.lista || [];
+
+  alvo.innerHTML =
+    // ---- o link rastreado, que é o que faz isto funcionar
+    '<div class="tut-passo" style="margin-bottom:16px">'
+    + '<div class="tut-num">1</div><div class="tut-corpo">'
+    + '<h4>Use este link no lugar do link da TMB</h4>'
+    + '<p>Em qualquer lugar onde você manda a pessoa para o '
+    + 'financiamento — WhatsApp, e-mail, página. O visitante vai para a '
+    + 'TMB do mesmo jeito; a dash só registra a passagem.</p>'
+    + '<div class="tut-link"><code id="rec-link-tmb">'
+    + esc(API + '/r/tmb/{id_da_inscricao}') + '</code>'
+    + '<button class="mini" onclick="copiarLinkTmb()">Copiar</button></div>'
+    + '<p style="font-size:12px;color:var(--texto-3)">Sem o id, o link '
+    + 'funciona e leva para a TMB, mas a dash não sabe quem passou. '
+    + 'Os disparos do SellFlux podem preencher o id automaticamente.</p>'
+    + '</div></div>'
+
+    + '<div class="tut-passo" style="margin-bottom:16px">'
+    + '<div class="tut-num">2</div><div class="tut-corpo">'
+    + '<h4>Para onde ele leva</h4>'
+    + '<p>O endereço da TMB deste lançamento:</p>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + '<input class="campo" id="rec-url-tmb" style="flex:1;min-width:240px" '
+    + 'placeholder="tmbeducacao.com.br/..." value="'
+    + esc(d.link_atual || '') + '">'
+    + '<button class="btn" onclick="salvarLinkTmb()">Salvar</button>'
+    + '</div><div id="rec-url-res" style="margin-top:8px"></div>'
+    + '</div></div>'
+
+    + '<div class="metricas" style="margin-bottom:14px">'
+    + [['👆 Clicaram no link', numero(r.clicaram), ''],
+       ['📝 Começaram o cadastro', numero(r.comecaram_cadastro),
+        'têm pedido na TMB'],
+       ['🚪 Clicaram e não começaram', numero(r.nao_comecaram),
+        numero(r.com_telefone) + ' com WhatsApp']]
+      .map(function(x){
+        return '<div class="metrica"><div class="rot">' + x[0] + '</div>'
+          + '<div class="num">' + x[1] + '</div>'
+          + (x[2] ? '<div class="pe">' + x[2] + '</div>' : '') + '</div>';
+      }).join('')
+    + '</div>'
+
+    + (lista.length
+        ? '<div class="rolagem"><table><thead><tr>'
+          + '<th>Pessoa</th><th class="num-td">Cliques</th>'
+          + '<th class="num-td">Último clique</th>'
+          + '</tr></thead><tbody>'
+          + lista.map(function(p){
+              return '<tr>'
+                + '<td><div style="font-weight:500">'
+                + esc(p.nome || p.email || '—')
+                + (p.engenheiro
+                    ? ' <span class="pilula" style="font-size:10px">eng</span>'
+                    : '')
+                + '</div><div class="sub">' + esc(p.email || '')
+                + (p.telefone ? ' · ' + esc(p.telefone) : '')
+                + '</div></td>'
+                + '<td class="num-td">' + numero(p.cliques) + '</td>'
+                + '<td class="num-td">'
+                + (p.dias === 0 ? 'hoje'
+                   : p.dias + (p.dias === 1 ? ' dia' : ' dias')) + '</td>'
+                + '</tr>';
+            }).join('')
+          + '</tbody></table></div>'
+        : '<div class="alerta-caixa">Ninguém clicou no link rastreado ainda. '
+          + 'Se você está usando o link da TMB direto, esta lista fica '
+          + 'vazia — troque pelo link de cima.</div>')
+
+    + '<div class="nota-tabela">' + esc(d.como_funciona || '') + '</div>';
+}
+
+function copiarLinkTmb(){
+  var el = document.getElementById('rec-link-tmb');
+  if(!el) return;
+  navigator.clipboard.writeText(el.textContent)
+    .then(function(){ mostrarToast('Link copiado'); })
+    .catch(function(){ mostrarToast('Não deu para copiar'); });
+}
+
+async function salvarLinkTmb(){
+  var v = (document.getElementById('rec-url-tmb').value || '').trim();
+  var res = document.getElementById('rec-url-res');
+
+  try{
+    var r = await fetch(API + '/api/link-financiamento?lancamento='
+                        + encodeURIComponent(lancamentoAtual), {
+      method:'POST',
+      headers:{'Content-Type':'application/json',
+               Authorization:'Bearer ' + sessao.token},
+      body: JSON.stringify({ url: v })
+    });
+    var d = await r.json();
+    res.innerHTML = d.ok
+      ? '<div class="alerta-caixa">✅ Salvo.</div>'
+      : '<div class="alerta-caixa perigo">' + esc(d.erro || 'falhou') + '</div>';
+  }catch(e){
+    res.innerHTML = '<div class="alerta-caixa perigo">' + esc(e.message)
+      + '</div>';
+  }
 }
 
 
@@ -8878,8 +9325,9 @@ function aplicarFiltroProduto(){
   try{ localStorage.setItem('dash_produtos', JSON.stringify(produtosSelecionados)); }catch(e){}
   if(telaAtual === 'home') carregarHome();
   else if(telaAtual === 'vendas'){
-    carregarResultado(); carregarPagamentosPendentes(); carregarVendas();
+    carregarResultado(); carregarVendas();
   }
+  else if(telaAtual === 'recuperacao') carregarRecuperacao();
   else if(telaAtual === 'faturamento') carregarFaturamento();
 }
 
