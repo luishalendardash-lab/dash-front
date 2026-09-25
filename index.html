@@ -685,6 +685,31 @@ tr.queimando td:first-child{box-shadow:inset 3px 0 0 #C4571F}
   border:1px solid var(--borda-forte);display:block;
 }
 
+.isca-arq-linha{
+  display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;
+  padding:11px 12px;margin-bottom:8px;
+  background:var(--fundo);border:1px solid var(--borda);
+  border-radius:var(--raio-p);
+}
+.isca-arq-n{
+  flex:none;width:24px;height:24px;border-radius:7px;
+  background:var(--destaque-bg);color:var(--destaque);
+  font-size:12px;font-weight:700;display:flex;
+  align-items:center;justify-content:center;margin-bottom:8px;
+}
+.isca-arq-bts{display:flex;gap:5px;align-items:center;margin-bottom:1px}
+.isca-arq-bts .mini:disabled{opacity:.35;cursor:default}
+/* Quais arquivos cada lead pegou, na lista de quem preencheu. */
+.isca-arqs-lead{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.isca-arq-tag{
+  font-size:10.5px;padding:2px 7px;border-radius:99px;
+  background:var(--fundo);color:var(--texto-3);
+  border:1px solid var(--borda);line-height:1.5;
+}
+.isca-arq-tag.pego{
+  color:var(--positivo);border-color:var(--positivo);
+}
+
 /* ---- Entregas (iscas): certificado e material ----
    A parte incomum é o palco: a arte do certificado com os textos por
    cima, arrastáveis. O tamanho dos textos é em `cqh` — porcentagem da
@@ -1822,20 +1847,11 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
                placeholder="Texto do botão — ex: Quero receber"></div>
         </div>
 
-        <!-- ---- arquivo igual para todos ---- -->
+        <!-- ---- os arquivos que todos baixam ---- -->
         <div class="q-card" id="isca-bloco-arquivo"
              style="margin-bottom:18px;display:none">
-          <div class="isca-secao">O arquivo que todos vão baixar</div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <input type="file" id="isca-arq" accept=".pdf,.zip,.pptx,.ppt"
-                   onchange="subirArqIsca()" style="flex:1;min-width:200px">
-            <span id="isca-arq-status" style="font-size:12.5px;color:var(--texto-3)"></span>
-          </div>
-          <div class="campo" style="margin:12px 0 0"><label>Nome do arquivo no download
-            <span style="font-weight:400;color:var(--texto-3)">(opcional)</span></label>
-            <input id="isca-arq-nome" oninput="marcarIscaMudou()"
-                   placeholder="slides-aula-1.pdf"></div>
-          <div class="isca-dica">PDF, ZIP ou PPTX, até 40 MB.</div>
+          <div class="isca-secao">Os arquivos que todos vão baixar</div>
+          <div id="isca-arquivos"></div>
         </div>
 
         <!-- ---- certificado ---- -->
@@ -4559,8 +4575,9 @@ async function carregarIscas(){
 function novaIsca(){
   iscaAtual = { slug:'', nome:'', tipo:'certificado', ativa:true,
                 config:{}, intro:{}, arquivo_url:'', arquivo_nome:'',
-                desfechos:[] };
+                desfechos:[], arquivos:[] };
   iscaPerguntas = [];
+  iscaArquivos = [];
   separarDesfechos([]);
   certLinhas = [];
   certNome = { x:50, y:45, tamanho:6, negrito:true, cor:'#1f2937' };
@@ -4584,6 +4601,9 @@ function trocarIsca(slug){
     };
   });
   separarDesfechos(i.desfechos);
+  // cópia, para mexer na tela sem alterar o que veio do banco
+  iscaArquivos = (i.arquivos || []).map(function(a){
+    return { url:a.url, rotulo:a.rotulo || '', nome:a.nome || '' }; });
   var cfg = i.config || {};
   certLinhas = (cfg.linhas || []).map(function(l){ return Object.assign({}, l); });
   certNome = Object.assign({ x:50, y:45, tamanho:6, negrito:true,
@@ -4608,13 +4628,10 @@ function preencherFormIsca(){
   v('isca-intro-titulo', intro.titulo);
   v('isca-intro-texto', intro.texto);
   v('isca-intro-botao', intro.botao);
-  v('isca-arq-nome', i.arquivo_nome);
   v('isca-evento', cfg.evento);
   v('isca-carga', cfg.carga_horaria);
   v('isca-fone-obr', cfg.telefone_obrigatorio ? '1' : '0');
 
-  document.getElementById('isca-arq-status').textContent =
-    i.arquivo_url ? '✓ arquivo carregado' : '';
   document.getElementById('isca-fundo-status').textContent =
     cfg.fundo_url ? '✓ arte carregada' : '';
 
@@ -4633,6 +4650,7 @@ function preencherFormIsca(){
   }
 
   trocarTipoIsca(true);
+  desenharArquivosIsca();
   desenharPerguntasIsca();
   desenharDesfechos();
   desenharPalco();
@@ -4944,28 +4962,6 @@ function paraJpeg(arquivo){
   });
 }
 
-async function subirArqIsca(){
-  var inp = document.getElementById('isca-arq');
-  var st = document.getElementById('isca-arq-status');
-  var f = inp.files && inp.files[0];
-  if(!f) return;
-  st.textContent = 'enviando ' + (f.size/1048576).toFixed(1) + ' MB…';
-  try{
-    var fd = new FormData();
-    fd.append('arquivo', f, f.name);
-    var r = await fetch(API + '/api/isca-arquivo', {
-      method:'POST', headers:{ Authorization:'Bearer ' + sessao.token },
-      body: fd });
-    var d = await r.json();
-    if(!d.ok){ st.textContent = ''; return avisoIsca(d.erro || 'falhou'); }
-    iscaAtual.arquivo_url = d.url;
-    var campo = document.getElementById('isca-arq-nome');
-    if(!campo.value) campo.value = f.name;
-    st.textContent = '✓ arquivo carregado';
-    marcarIscaMudou();
-  }catch(e){ st.textContent = ''; avisoIsca('falha de conexão'); }
-}
-
 /* -------------------- as perguntas -------------------- */
 
 function addPerguntaIsca(){
@@ -5154,8 +5150,11 @@ async function salvarIsca(){
   corpo.config = { telefone_obrigatorio: v('isca-fone-obr') === '1' };
 
   if(tipo === 'arquivo'){
-    corpo.arquivo_url = iscaAtual.arquivo_url || '';
-    corpo.arquivo_nome = v('isca-arq-nome');
+    corpo.arquivos = iscaArquivos.filter(function(a){
+      return String(a.url || '').trim(); });
+    if(!corpo.arquivos.length){
+      return avisoIsca('suba pelo menos um arquivo para o lead baixar');
+    }
   }else{
     corpo.config.fundo_url = (iscaAtual.config || {}).fundo_url || '';
     corpo.config.evento = v('isca-evento');
@@ -5226,7 +5225,8 @@ async function carregarEntregasIsca(){
     document.getElementById('isca-contagem').textContent =
       d.total + ' preencheram · ' + d.baixaram + ' baixaram';
 
-    resumo.innerHTML = desenharResumoIsca(d.por_resposta || []);
+    resumo.innerHTML = desenharPorArquivo(d.por_arquivo || [], d.total || 0)
+      + desenharResumoIsca(d.por_resposta || []);
     alvo.innerHTML = desenharListaIsca(d.entregas || [], d.isca || {});
     entregasIsca = d.entregas || [];
   }catch(e){
@@ -5236,6 +5236,34 @@ async function carregarEntregasIsca(){
 }
 
 var entregasIsca = [];
+
+/**
+ * Quantos pegaram cada arquivo.
+ *
+ * Com três aulas isto é a leitura mais útil da tela: mostra em qual aula
+ * a fila cai. Some com um arquivo só, onde não diria nada.
+ */
+function desenharPorArquivo(arquivos, total){
+  if(!arquivos.length || arquivos.length < 2) return '';
+  var maior = Math.max.apply(null, arquivos.map(function(a){
+    return Number(a.baixaram || 0); }).concat([1]));
+
+  return '<div class="isca-resumo"><div class="isca-grupo">'
+    + '<div class="isca-grupo-tit">Quem pegou cada arquivo '
+    + '<span>'+total+' preencheram</span></div>'
+    + arquivos.map(function(a){
+        var n = Number(a.baixaram || 0);
+        var pct = total > 0 ? (100 * n / total) : 0;
+        return '<div class="isca-barra-linha">'
+          + '<div class="isca-barra-rot">'+esc(a.rotulo)+'</div>'
+          + '<div class="isca-barra"><div class="isca-barra-i" style="width:'
+          + Math.round(100 * n / maior)+'%"></div></div>'
+          + '<div class="isca-barra-num">'+n
+          + ' <span>'+pct.toFixed(0)+'%</span></div>'
+          + '</div>';
+      }).join('')
+    + '</div></div>';
+}
 
 function desenharResumoIsca(grupos){
   if(!grupos.length) return '';
@@ -5273,7 +5301,10 @@ function desenharResumoIsca(grupos){
   }).join('') + '</div>';
 }
 
+var arquivosDaIsca = [];
+
 function desenharListaIsca(lista, isca){
+  arquivosDaIsca = (isca.arquivos || []);
   if(!lista.length){
     return '<div class="vazio">'
       + 'Ninguém preencheu ainda. Divulgue o link acima.</div>';
@@ -5300,10 +5331,24 @@ function desenharListaIsca(lista, isca){
           + '<td>'+dataCurta(e.criado_em)+'</td>'
           + '<td>'+(e.baixou
               ? '<span class="pilula" style="color:var(--positivo)">'+e.vezes_baixou+'×</span>'
-              : '<span class="pilula">não</span>')+'</td>'
+              : '<span class="pilula">não</span>')
+            // Com três slides, "baixou 2×" não diz nada: pode ser a
+            // mesma aula duas vezes. O que interessa é QUAIS.
+            + (arquivosDaIsca.length > 1
+                ? '<div class="isca-arqs-lead">'
+                  + arquivosDaIsca.map(function(a){
+                      var pego = (e.baixou_quais || []).indexOf(a.rotulo) !== -1;
+                      return '<span class="isca-arq-tag'+(pego?' pego':'')+'">'
+                        + esc(a.rotulo)+(pego?' ✓':'')+'</span>';
+                    }).join('')
+                  + '</div>'
+                : '')
+            +'</td>'
           + '<td><div class="isca-acoes">'
           + '<button class="mini" onclick="pegarArquivoIsca('+i+')">'
-          + (ehCert ? '📄 Certificado' : '📄 Arquivo')+'</button>'
+          + (ehCert ? '📄 Certificado'
+              : (arquivosDaIsca.length > 1 ? '📄 Arquivos' : '📄 Arquivo'))
+          + '</button>'
           + (e.whatsapp
               ? '<button class="mini" onclick="zapIsca('+i+')">💬 WhatsApp</button>'
               : '')
@@ -5324,7 +5369,12 @@ function desenharListaIsca(lista, isca){
 function pegarArquivoIsca(i){
   var e = entregasIsca[i];
   if(!e) return;
-  window.open(API + '/c/' + encodeURIComponent(e.codigo) + '/baixar', '_blank');
+  // Com vários arquivos não há como "o arquivo": abre a página do lead,
+  // que lista todos — é a mesma página que ele vê, com os mesmos links.
+  var alvo = arquivosDaIsca.length > 1
+    ? API + '/c/' + encodeURIComponent(e.codigo)
+    : API + '/c/' + encodeURIComponent(e.codigo) + '/baixar';
+  window.open(alvo, '_blank');
 }
 
 function copiarLinkLead(i){
@@ -5670,6 +5720,146 @@ function removerImagemPergunta(i){
   iscaPerguntas[i].imagem = '';
   marcarIscaMudou();
   desenharPerguntasIsca();
+}
+
+/* ---------------------------------------------------------------------
+   OS ARQUIVOS DA ENTREGA
+
+   Uma entrega pode ter vários arquivos — os slides são três. Cada um
+   virou um botão nomeado na tela do lead, e a ordem daqui é a ordem lá.
+   --------------------------------------------------------------------- */
+
+var iscaArquivos = [];     // [{url, rotulo, nome}]
+
+function desenharArquivosIsca(){
+  var alvo = document.getElementById('isca-arquivos');
+  if(!alvo) return;
+
+  alvo.innerHTML = (iscaArquivos.length
+    ? iscaArquivos.map(function(a, i){
+        return '<div class="isca-arq-linha">'
+          + '<div class="isca-arq-n">' + (i + 1) + '</div>'
+          + '<div class="campo" style="margin:0;flex:1;min-width:150px">'
+          + '<label>Texto do botão</label>'
+          + '<input value="' + esc(a.rotulo || '') + '" '
+          + 'placeholder="Slides Aula 1" '
+          + 'oninput="mudarArquivo(' + i + ',\'rotulo\',this.value)"></div>'
+          + '<div class="campo" style="margin:0;flex:1;min-width:150px">'
+          + '<label>Nome do download</label>'
+          + '<input value="' + esc(a.nome || '') + '" '
+          + 'placeholder="slides-aula-1.pdf" '
+          + 'oninput="mudarArquivo(' + i + ',\'nome\',this.value)"></div>'
+          + '<div class="isca-arq-bts">'
+          + '<button class="mini" onclick="subirArquivoOrdem(' + i + ')"'
+          + (i === 0 ? ' disabled' : '') + ' title="Subir">↑</button>'
+          + '<button class="mini" onclick="descerArquivoOrdem(' + i + ')"'
+          + (i === iscaArquivos.length - 1 ? ' disabled' : '')
+          + ' title="Descer">↓</button>'
+          + '<button class="mini" onclick="removerArquivoIsca(' + i + ')">'
+          + 'Remover</button>'
+          + '</div></div>';
+      }).join('')
+    : '<div class="isca-dica" style="padding:10px 0">Nenhum arquivo ainda.</div>')
+
+    + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;'
+    + 'margin-top:12px">'
+    + '<input type="file" id="isca-arq" accept=".pdf,.zip,.pptx,.ppt" multiple '
+    + 'onchange="subirArqIsca()" style="flex:1;min-width:190px">'
+    + '<span id="isca-arq-status" style="font-size:12.5px;'
+    + 'color:var(--texto-3)"></span></div>'
+    + '<div class="isca-dica">PDF, ZIP ou PPTX, até 40 MB cada. Pode '
+    + 'escolher vários de uma vez. O lead vê um botão por arquivo, na '
+    + 'ordem desta lista.</div>';
+}
+
+function mudarArquivo(i, campo, valor){
+  if(!iscaArquivos[i]) return;
+  iscaArquivos[i][campo] = valor;
+  marcarIscaMudou();
+}
+
+function removerArquivoIsca(i){
+  iscaArquivos.splice(i, 1);
+  marcarIscaMudou();
+  desenharArquivosIsca();
+}
+
+/**
+ * Mover na lista.
+ *
+ * A ordem importa porque são "Aula 1, 2, 3": remover e subir de novo só
+ * para trocar a ordem seria trabalho à toa, e a pessoa perderia o nome
+ * que já digitou.
+ */
+function subirArquivoOrdem(i){
+  if(i <= 0) return;
+  var t = iscaArquivos[i - 1];
+  iscaArquivos[i - 1] = iscaArquivos[i];
+  iscaArquivos[i] = t;
+  marcarIscaMudou();
+  desenharArquivosIsca();
+}
+
+function descerArquivoOrdem(i){
+  if(i >= iscaArquivos.length - 1) return;
+  var t = iscaArquivos[i + 1];
+  iscaArquivos[i + 1] = iscaArquivos[i];
+  iscaArquivos[i] = t;
+  marcarIscaMudou();
+  desenharArquivosIsca();
+}
+
+/**
+ * Sobe um ou vários arquivos.
+ *
+ * Em série e não em paralelo: três PDFs de 30 MB ao mesmo tempo estouram
+ * a conexão de quem está num 4G, e o erro apareceria como "falhou" sem
+ * dizer qual.
+ */
+async function subirArqIsca(){
+  var inp = document.getElementById('isca-arq');
+  var st = document.getElementById('isca-arq-status');
+  var lista = inp && inp.files ? Array.prototype.slice.call(inp.files) : [];
+  if(!lista.length) return;
+
+  for(var k = 0; k < lista.length; k++){
+    var f = lista[k];
+    st.textContent = 'enviando ' + (k + 1) + ' de ' + lista.length
+      + ' — ' + f.name + ' (' + (f.size/1048576).toFixed(1) + ' MB)…';
+    try{
+      var fd = new FormData();
+      fd.append('arquivo', f, f.name);
+      var r = await fetch(API + '/api/isca-arquivo', {
+        method:'POST', headers:{ Authorization:'Bearer ' + sessao.token },
+        body: fd });
+      var d = await r.json();
+      if(!d.ok){
+        st.textContent = '';
+        return avisoIsca('“' + f.name + '”: ' + (d.erro || 'falhou'));
+      }
+      iscaArquivos.push({
+        url: d.url,
+        // Rótulo sugerido a partir do nome do arquivo, sem a extensão:
+        // "slides-aula-1.pdf" vira "Slides aula 1". O cliente ajusta.
+        rotulo: rotuloDoNome(f.name),
+        nome: f.name
+      });
+      desenharArquivosIsca();
+      marcarIscaMudou();
+    }catch(e){
+      st.textContent = '';
+      return avisoIsca('falha de conexão ao enviar “' + f.name + '”');
+    }
+  }
+  st.textContent = '✓ ' + lista.length
+    + (lista.length > 1 ? ' arquivos enviados' : ' arquivo enviado');
+}
+
+function rotuloDoNome(nome){
+  var s = String(nome || '').replace(/\.[^.]+$/, '')
+    .replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if(!s) return 'Baixar';
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 async function carregarQuiz(){
