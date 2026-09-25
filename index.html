@@ -665,6 +665,26 @@ tr.queimando td:first-child{box-shadow:inset 3px 0 0 #C4571F}
   font-size:11.5px;cursor:pointer;transition:border-color .15s;
 }
 .var-chip:hover{border-color:var(--destaque);color:var(--destaque)}
+.isca-cond{
+  background:var(--fundo);border:1px solid var(--borda);
+  border-radius:var(--raio-p);padding:11px 12px;margin-bottom:10px;
+}
+.isca-valores{display:flex;gap:7px;flex-wrap:wrap}
+.isca-valor{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:7px 11px;border:1px solid var(--borda-forte);
+  border-radius:99px;font-size:12.5px;cursor:pointer;
+  background:var(--vidro-solido);line-height:1.2;
+}
+.isca-valor:hover{border-color:var(--texto-3)}
+.isca-valor.on{border-color:var(--destaque);color:var(--destaque)}
+.isca-valor input{accent-color:var(--destaque);margin:0;width:15px;height:15px}
+.isca-img-previa{display:flex;gap:10px;align-items:flex-start}
+.isca-img-previa img{
+  max-width:190px;max-height:120px;border-radius:8px;
+  border:1px solid var(--borda-forte);display:block;
+}
+
 /* ---- Entregas (iscas): certificado e material ----
    A parte incomum é o palco: a arte do certificado com os textos por
    cima, arrastáveis. O tamanho dos textos é em `cqh` — porcentagem da
@@ -1783,6 +1803,11 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
               <option value="1">Aberta — pode preencher</option>
               <option value="0">Fechada</option>
             </select></div>
+          <div class="campo" style="margin:0"><label>WhatsApp do lead</label>
+            <select id="isca-fone-obr" onchange="marcarIscaMudou()">
+              <option value="0">Pedir, sem obrigar</option>
+              <option value="1">Obrigatório</option>
+            </select></div>
         </div>
 
         <div class="q-card" style="margin-bottom:18px">
@@ -1912,6 +1937,19 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
           texto livre você lê uma por uma.
         </div>
         <div id="isca-perguntas"></div>
+
+        <!-- ---- as telas finais ---- -->
+        <div class="painel-topo" style="margin:26px 0 12px">
+          <div class="isca-secao" style="margin:0">A tela final</div>
+          <button class="btn" onclick="addDesfecho()">+ Tela por resposta</button>
+        </div>
+        <div class="isca-dica" style="margin:-6px 0 14px">
+          Aqui o formulário deixa de ser formulário. Quem responde que quer
+          comprar vê o link de pagamento; quem tem dúvida vê o botão de
+          falar com a equipe; quem não quer nada baixa o material e pronto.
+          A primeira regra que casar é a que vale, de cima para baixo.
+        </div>
+        <div id="isca-desfechos"></div>
 
       </section>
 
@@ -4520,8 +4558,10 @@ async function carregarIscas(){
 
 function novaIsca(){
   iscaAtual = { slug:'', nome:'', tipo:'certificado', ativa:true,
-                config:{}, intro:{}, arquivo_url:'', arquivo_nome:'' };
+                config:{}, intro:{}, arquivo_url:'', arquivo_nome:'',
+                desfechos:[] };
   iscaPerguntas = [];
+  separarDesfechos([]);
   certLinhas = [];
   certNome = { x:50, y:45, tamanho:6, negrito:true, cor:'#1f2937' };
   certSel = null;
@@ -4537,10 +4577,13 @@ function trocarIsca(slug){
     return {
       chave: p.chave, enunciado: p.enunciado, tipo: p.tipo || 'opcao',
       obrigatoria: p.obrigatoria !== false, ajuda: p.ajuda || '',
+      antes: p.antes || '', imagem: p.imagem || '',
+      condicao: p.condicao || null,
       opcoes: (p.opcoes || []).map(function(o){
         return { valor:o.valor, label:o.label }; })
     };
   });
+  separarDesfechos(i.desfechos);
   var cfg = i.config || {};
   certLinhas = (cfg.linhas || []).map(function(l){ return Object.assign({}, l); });
   certNome = Object.assign({ x:50, y:45, tamanho:6, negrito:true,
@@ -4568,6 +4611,7 @@ function preencherFormIsca(){
   v('isca-arq-nome', i.arquivo_nome);
   v('isca-evento', cfg.evento);
   v('isca-carga', cfg.carga_horaria);
+  v('isca-fone-obr', cfg.telefone_obrigatorio ? '1' : '0');
 
   document.getElementById('isca-arq-status').textContent =
     i.arquivo_url ? '✓ arquivo carregado' : '';
@@ -4590,6 +4634,7 @@ function preencherFormIsca(){
 
   trocarTipoIsca(true);
   desenharPerguntasIsca();
+  desenharDesfechos();
   desenharPalco();
 }
 
@@ -4927,10 +4972,14 @@ function addPerguntaIsca(){
   iscaPerguntas.push({
     chave: 'pergunta_' + (iscaPerguntas.length + 1),
     enunciado: '', tipo: 'opcao', obrigatoria: true, ajuda: '',
+    antes: '', imagem: '', condicao: null,
     opcoes: [{ valor:'op1', label:'' }]
   });
   marcarIscaMudou();
   desenharPerguntasIsca();
+  // A pergunta nova pode virar gatilho de uma tela final, então a lista
+  // de gatilhos é redesenhada junto.
+  desenharDesfechos();
 }
 
 function desenharPerguntasIsca(){
@@ -4972,7 +5021,35 @@ function desenharPerguntasIsca(){
       + '<option value="1"'+(p.obrigatoria!==false?' selected':'')+'>Sim</option>'
       + '<option value="0"'+(p.obrigatoria===false?' selected':'')+'>Não</option>'
       + '</select></div>'
-      + '</div>';
+      + '</div>'
+
+      // O texto e a imagem que vêm ACIMA da pergunta. É onde entra a
+      // copy da oferta e o mockup — no form do Tally eles ficavam numa
+      // tela à parte, aqui ficam colados na pergunta que eles preparam.
+      + '<div class="campo" style="margin-bottom:10px">'
+      + '<label>Texto antes da pergunta '
+      + '<span style="font-weight:400;color:var(--texto-3)">(opcional)</span></label>'
+      + '<textarea rows="3" class="isca-area" '
+      + 'placeholder="A copy que prepara esta pergunta. Quebra de linha é respeitada." '
+      + 'oninput="iscaPerguntas['+i+'].antes=this.value;marcarIscaMudou()">'
+      + esc(p.antes||'') + '</textarea></div>'
+
+      + '<div class="campo" style="margin-bottom:10px">'
+      + '<label>Imagem antes da pergunta '
+      + '<span style="font-weight:400;color:var(--texto-3)">(opcional)</span></label>'
+      + (p.imagem
+          ? '<div class="isca-img-previa">'
+            + '<img src="'+esc(p.imagem)+'" alt="">'
+            + '<button class="mini" onclick="removerImagemPergunta('+i+')">'
+            + 'Trocar</button></div>'
+          : '<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">'
+            + '<input type="file" id="img_p'+i+'" accept="image/*" '
+            + 'onchange="subirImagemPergunta('+i+')" style="flex:1;min-width:180px">'
+            + '<span id="imgst_p'+i+'" style="font-size:12px;'
+            + 'color:var(--texto-3)"></span></div>')
+      + '</div>'
+
+      + blocoCondicao(p, i);
 
     if(p.tipo !== 'texto'){
       h += '<div class="isca-opcoes">'
@@ -5036,6 +5113,10 @@ async function salvarIsca(){
       chave: (p.chave || ('pergunta_'+(i+1))).trim(),
       enunciado: p.enunciado, ordem: i + 1, tipo: p.tipo,
       obrigatoria: p.obrigatoria !== false, ajuda: p.ajuda,
+      antes: p.antes || '', imagem: p.imagem || '',
+      condicao: (p.condicao && p.condicao.chave
+                 && (p.condicao.valores || []).length)
+        ? p.condicao : null,
       opcoes: (p.opcoes || []).map(function(o, j){
         return {
           valor: (o.valor || ('op'+(j+1))).trim(),
@@ -5064,20 +5145,23 @@ async function salvarIsca(){
     ativa: v('isca-ativa') === '1',
     intro: { titulo: v('isca-intro-titulo'), texto: v('isca-intro-texto'),
              botao: v('isca-intro-botao') },
-    perguntas: perguntas
+    perguntas: perguntas,
+    desfechos: juntarDesfechos()
   };
+
+  // O config existe nos dois tipos, porque o telefone obrigatório vale
+  // para qualquer isca. O que muda é o resto do conteúdo dele.
+  corpo.config = { telefone_obrigatorio: v('isca-fone-obr') === '1' };
 
   if(tipo === 'arquivo'){
     corpo.arquivo_url = iscaAtual.arquivo_url || '';
     corpo.arquivo_nome = v('isca-arq-nome');
   }else{
-    corpo.config = {
-      fundo_url: (iscaAtual.config || {}).fundo_url || '',
-      evento: v('isca-evento'),
-      carga_horaria: v('isca-carga'),
-      nome: certNome,
-      linhas: certLinhas
-    };
+    corpo.config.fundo_url = (iscaAtual.config || {}).fundo_url || '';
+    corpo.config.evento = v('isca-evento');
+    corpo.config.carga_horaria = v('isca-carga');
+    corpo.config.nome = certNome;
+    corpo.config.linhas = certLinhas;
   }
 
   b.disabled = true; b.textContent = 'Salvando…';
@@ -5261,6 +5345,331 @@ function zapIsca(i){
     + ': ' + API + '/c/' + e.codigo;
   window.open('https://wa.me/' + e.whatsapp + '?text=' + encodeURIComponent(msg),
     '_blank');
+}
+
+/* ---------------------------------------------------------------------
+   O FUNIL: CONDIÇÃO, BLOCOS E TELAS FINAIS
+
+   Estas três coisas transformam o formulário em qualificação. A condição
+   faz a pergunta aparecer só para quem respondeu certa coisa; os blocos
+   põem a copy e o mockup da oferta acima da pergunta; a tela final muda
+   conforme a resposta — link de pagamento para quem quer comprar, botão
+   da equipe para quem tem dúvida.
+   --------------------------------------------------------------------- */
+
+var certDesfechos = [];      // as telas finais, sem a padrão
+var certPadrao = {};         // a tela final "para todos os outros"
+
+/**
+ * Separa a tela padrão das demais.
+ *
+ * No banco elas são uma lista só, e a padrão é a que não tem condição —
+ * tem que ser a ÚLTIMA, senão ela casa primeiro e engole todas as
+ * outras. Em vez de avisar o cliente sobre isso, a tela guarda a padrão
+ * num lugar separado e recoloca no fim ao salvar. O erro deixa de ser
+ * possível.
+ */
+function separarDesfechos(lista){
+  certDesfechos = [];
+  certPadrao = { titulo:'', texto:'', mostrar_download:true };
+  (lista || []).forEach(function(d){
+    var temQuando = d && d.quando
+      && String(d.quando.chave || '').trim() !== '';
+    if(temQuando) certDesfechos.push(JSON.parse(JSON.stringify(d)));
+    else certPadrao = Object.assign({ mostrar_download:true },
+                                    JSON.parse(JSON.stringify(d)));
+  });
+}
+
+function juntarDesfechos(){
+  var saida = certDesfechos.filter(function(d){
+    return d && d.quando && String(d.quando.chave || '').trim()
+      && (d.quando.valores || []).length;
+  });
+  // A padrão só entra se tiver o que dizer; sem ela a página usa o texto
+  // de sempre.
+  if(String(certPadrao.titulo || '').trim()
+     || String(certPadrao.texto || '').trim()
+     || certPadrao.mostrar_download === false){
+    saida.push({
+      titulo: certPadrao.titulo || '',
+      texto: certPadrao.texto || '',
+      mostrar_download: certPadrao.mostrar_download !== false
+    });
+  }
+  return saida;
+}
+
+function addDesfecho(){
+  var primeira = (iscaPerguntas[0] || {}).chave || '';
+  certDesfechos.push({
+    quando: { chave: primeira, valores: [] },
+    titulo: '', texto: '', botao: '', url: '', mostrar_download: true
+  });
+  marcarIscaMudou();
+  desenharDesfechos();
+}
+
+function removerDesfecho(i){
+  certDesfechos.splice(i, 1);
+  marcarIscaMudou();
+  desenharDesfechos();
+}
+
+function mudarDesfecho(i, campo, valor){
+  if(!certDesfechos[i]) return;
+  certDesfechos[i][campo] = valor;
+  marcarIscaMudou();
+}
+
+function mudarDesfechoChave(i, chave){
+  if(!certDesfechos[i]) return;
+  certDesfechos[i].quando = { chave: chave, valores: [] };
+  marcarIscaMudou();
+  desenharDesfechos();
+}
+
+function alternarDesfechoValor(i, valor, ligado){
+  var d = certDesfechos[i];
+  if(!d) return;
+  d.quando = d.quando || { chave:'', valores:[] };
+  d.quando.valores = d.quando.valores || [];
+  var pos = d.quando.valores.indexOf(valor);
+  if(ligado && pos < 0) d.quando.valores.push(valor);
+  if(!ligado && pos >= 0) d.quando.valores.splice(pos, 1);
+  marcarIscaMudou();
+}
+
+function mudarPadrao(campo, valor){
+  certPadrao[campo] = valor;
+  marcarIscaMudou();
+}
+
+/** Só as perguntas de opção servem de gatilho: texto livre não casa. */
+function perguntasDeOpcao(){
+  return iscaPerguntas.filter(function(p){ return p.tipo !== 'texto'; });
+}
+
+function desenharDesfechos(){
+  var alvo = document.getElementById('isca-desfechos');
+  if(!alvo) return;
+
+  var gatilhos = perguntasDeOpcao();
+  if(!gatilhos.length){
+    alvo.innerHTML = '<div class="isca-dica" style="padding:16px 0">'
+      + 'Crie uma pergunta de opção primeiro. A tela final é escolhida '
+      + 'pela resposta, então precisa de uma pergunta para observar.</div>';
+    return;
+  }
+
+  alvo.innerHTML = certDesfechos.map(function(d, i){
+    var chave = (d.quando || {}).chave || '';
+    var perg = gatilhos.filter(function(p){ return p.chave === chave; })[0];
+    var valores = (d.quando || {}).valores || [];
+
+    return '<div class="q-card">'
+      + '<div class="int-topo" style="margin-bottom:12px">'
+      + '<div class="q-num">' + (i + 1) + '</div>'
+      + '<span style="font-size:13px;color:var(--texto-2)">Quando a resposta de</span>'
+      + '<select onchange="mudarDesfechoChave(' + i + ',this.value)" '
+      + 'style="flex:1;min-width:160px">'
+      + gatilhos.map(function(p){
+          return '<option value="' + esc(p.chave) + '"'
+            + (p.chave === chave ? ' selected' : '') + '>'
+            + esc(p.enunciado || p.chave) + '</option>';
+        }).join('')
+      + '</select>'
+      + '<button class="mini" onclick="removerDesfecho(' + i + ')">Remover</button>'
+      + '</div>'
+
+      // "for uma destas" sozinho numa linha embaixo lê como português
+      // quebrado; a frase tem que se sustentar fora do seletor.
+      + '<div class="isca-dica" style="margin:0 0 8px">'
+      + 'Quando a resposta for uma destas:</div>'
+      + '<div class="isca-valores">'
+      + ((perg && perg.opcoes) || []).map(function(o){
+          var marcado = valores.indexOf(o.valor) !== -1;
+          return '<label class="isca-valor' + (marcado ? ' on' : '') + '">'
+            + '<input type="checkbox"' + (marcado ? ' checked' : '')
+            + ' onchange="alternarDesfechoValor(' + i + ','
+            + JSON.stringify(o.valor) + ',this.checked);'
+            + 'this.parentNode.classList.toggle(\'on\',this.checked)">'
+            + '<span>' + esc(o.label || o.valor) + '</span></label>';
+        }).join('')
+      + '</div>'
+      + (valores.length ? '' : '<div class="isca-falta on">'
+          + 'Marque pelo menos uma resposta, senão esta tela nunca aparece.'
+          + '</div>')
+
+      + '<div class="campo" style="margin:14px 0 10px"><label>Título</label>'
+      + '<input value="' + esc(d.titulo || '') + '" '
+      + 'placeholder="Sua inscrição está a um clique" '
+      + 'oninput="mudarDesfecho(' + i + ',\'titulo\',this.value)"></div>'
+
+      + '<div class="campo" style="margin-bottom:10px"><label>Texto</label>'
+      + '<textarea rows="2" class="isca-area" '
+      + 'placeholder="Clique no botão abaixo e finalize sua inscrição." '
+      + 'oninput="mudarDesfecho(' + i + ',\'texto\',this.value)">'
+      + esc(d.texto || '') + '</textarea></div>'
+
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">'
+      + '<div class="campo" style="margin:0"><label>Texto do botão</label>'
+      + '<input value="' + esc(d.botao || '') + '" '
+      + 'placeholder="Fazer minha inscrição" '
+      + 'oninput="mudarDesfecho(' + i + ',\'botao\',this.value)"></div>'
+      + '<div class="campo" style="margin:0"><label>Link do botão</label>'
+      + '<input value="' + esc(d.url || '') + '" '
+      + 'placeholder="https://pay.hotmart.com/..." '
+      + 'style="font-family:var(--mono);font-size:12.5px" '
+      + 'oninput="mudarDesfecho(' + i + ',\'url\',this.value)"></div>'
+      + '<div class="campo" style="margin:0"><label>Botão de baixar</label>'
+      + '<select onchange="mudarDesfecho(' + i
+      + ',\'mostrar_download\',this.value===\'1\')">'
+      + '<option value="1"' + (d.mostrar_download !== false ? ' selected' : '')
+      + '>Mostrar também</option>'
+      + '<option value="0"' + (d.mostrar_download === false ? ' selected' : '')
+      + '>Esconder</option></select></div>'
+      + '</div>'
+
+      + ((d.botao && !d.url) || (!d.botao && d.url)
+          ? '<div class="isca-falta on">Preencha o texto E o link do botão '
+            + '— com um só, o botão não aparece.</div>' : '')
+      + '</div>';
+  }).join('')
+
+  // ---- a padrão, sempre por último
+  + '<div class="q-card" style="border-color:var(--borda-forte);opacity:.92">'
+  + '<div class="int-topo" style="margin-bottom:12px">'
+  + '<div class="q-num" style="background:var(--borda)">·</div>'
+  + '<div style="font-size:13px;font-weight:600">Para todos os outros</div>'
+  + '</div>'
+  + '<div class="isca-dica" style="margin:0 0 12px">Quem não cair em '
+  + 'nenhuma regra acima vê esta tela. Ela é sempre a última — a dash '
+  + 'garante isso, porque uma tela sem condição colocada antes casaria '
+  + 'primeiro e as outras nunca apareceriam.</div>'
+  + '<div class="campo" style="margin-bottom:10px"><label>Título</label>'
+  + '<input value="' + esc(certPadrao.titulo || '') + '" '
+  + 'placeholder="Seus slides estão prontos" '
+  + 'oninput="mudarPadrao(\'titulo\',this.value)"></div>'
+  + '<div class="campo" style="margin-bottom:10px"><label>Texto</label>'
+  + '<textarea rows="2" class="isca-area" '
+  + 'placeholder="Desejamos tudo de bom na sua jornada." '
+  + 'oninput="mudarPadrao(\'texto\',this.value)">'
+  + esc(certPadrao.texto || '') + '</textarea></div>'
+  + '<div class="campo" style="margin:0;max-width:220px">'
+  + '<label>Botão de baixar</label>'
+  + '<select onchange="mudarPadrao(\'mostrar_download\',this.value===\'1\')">'
+  + '<option value="1"' + (certPadrao.mostrar_download !== false ? ' selected' : '')
+  + '>Mostrar</option>'
+  + '<option value="0"' + (certPadrao.mostrar_download === false ? ' selected' : '')
+  + '>Esconder</option></select></div>'
+  + '</div>';
+}
+
+/* ---------------- condição na pergunta ---------------- */
+
+function mudarCondicao(i, chave){
+  var p = iscaPerguntas[i];
+  if(!p) return;
+  if(!chave){ p.condicao = null; }
+  else { p.condicao = { chave: chave, valores: [] }; }
+  marcarIscaMudou();
+  desenharPerguntasIsca();
+}
+
+function alternarCondValor(i, valor, ligado){
+  var p = iscaPerguntas[i];
+  if(!p || !p.condicao) return;
+  p.condicao.valores = p.condicao.valores || [];
+  var pos = p.condicao.valores.indexOf(valor);
+  if(ligado && pos < 0) p.condicao.valores.push(valor);
+  if(!ligado && pos >= 0) p.condicao.valores.splice(pos, 1);
+  marcarIscaMudou();
+}
+
+/**
+ * O trecho de condição de uma pergunta.
+ *
+ * Só oferece as perguntas ANTERIORES: condição apontando para uma
+ * pergunta que vem depois nunca é satisfeita, porque a resposta ainda
+ * não existe quando a dash decide se mostra. A pergunta simplesmente
+ * desapareceria, sem erro nenhum.
+ */
+function blocoCondicao(p, i){
+  var antes = iscaPerguntas.slice(0, i)
+    .filter(function(x){ return x.tipo !== 'texto' && x.chave; });
+  if(!antes.length) return '';
+
+  var cond = p.condicao || null;
+  var chave = cond ? cond.chave : '';
+  var gatilho = antes.filter(function(x){ return x.chave === chave; })[0];
+  var valores = (cond && cond.valores) || [];
+
+  return '<div class="isca-cond">'
+    + '<div class="isca-dica" style="margin:0 0 8px">Quando mostrar</div>'
+    + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+    + '<select onchange="mudarCondicao(' + i + ',this.value)" '
+    + 'style="min-width:200px;flex:1">'
+    + '<option value=""' + (!chave ? ' selected' : '') + '>Sempre</option>'
+    + antes.map(function(x){
+        return '<option value="' + esc(x.chave) + '"'
+          + (x.chave === chave ? ' selected' : '') + '>Só se respondeu: '
+          + esc((x.enunciado || x.chave).slice(0, 44)) + '</option>';
+      }).join('')
+    + '</select></div>'
+    + (chave && gatilho
+        ? '<div class="isca-valores" style="margin-top:9px">'
+          + (gatilho.opcoes || []).map(function(o){
+              var marcado = valores.indexOf(o.valor) !== -1;
+              return '<label class="isca-valor' + (marcado ? ' on' : '') + '">'
+                + '<input type="checkbox"' + (marcado ? ' checked' : '')
+                + ' onchange="alternarCondValor(' + i + ','
+                + JSON.stringify(o.valor) + ',this.checked);'
+                + 'this.parentNode.classList.toggle(\'on\',this.checked)">'
+                + '<span>' + esc(o.label || o.valor) + '</span></label>';
+            }).join('')
+          + '</div>'
+          + (valores.length ? '' : '<div class="isca-falta on">Marque uma '
+              + 'resposta, senão esta pergunta nunca aparece.</div>')
+        : '')
+    + '</div>';
+}
+
+/* ---------------- imagem da pergunta ---------------- */
+
+async function subirImagemPergunta(i){
+  var inp = document.getElementById('img_p' + i);
+  var st = document.getElementById('imgst_p' + i);
+  var f = inp && inp.files && inp.files[0];
+  if(!f) return;
+  st.textContent = 'convertendo…';
+  try{
+    // Mesma conversão da arte do certificado: o que o cliente tem na mão
+    // é print ou PNG, e JPEG carrega mais rápido no celular do lead.
+    var jpeg = await paraJpeg(f);
+    var fd = new FormData();
+    fd.append('arquivo', jpeg, 'bloco.jpg');
+    st.textContent = 'enviando…';
+    var r = await fetch(API + '/api/isca-arquivo', {
+      method:'POST', headers:{ Authorization:'Bearer ' + sessao.token },
+      body: fd });
+    var d = await r.json();
+    if(!d.ok){ st.textContent = ''; return avisoIsca(d.erro || 'falhou'); }
+    iscaPerguntas[i].imagem = d.url;
+    st.textContent = '✓ enviada';
+    marcarIscaMudou();
+    desenharPerguntasIsca();
+  }catch(e){
+    st.textContent = '';
+    avisoIsca('não consegui ler a imagem: ' + (e.message || e));
+  }
+}
+
+function removerImagemPergunta(i){
+  if(!iscaPerguntas[i]) return;
+  iscaPerguntas[i].imagem = '';
+  marcarIscaMudou();
+  desenharPerguntasIsca();
 }
 
 async function carregarQuiz(){
