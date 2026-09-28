@@ -25,6 +25,11 @@ html[data-tema="light"]{
   --texto:#0B1220; --texto-2:#4A5A6B; --texto-3:#8494A5;
   --destaque:#0A6BC7; --destaque-bg:rgba(10,107,199,.09);
   --positivo:#0F9D58; --negativo:#D14343;
+  /* qualificação dos leads: âmbar para "travou no preço", teal para
+     "com dúvidas". São cores próprias porque a dash não tinha nem
+     aviso nem informativo, e apontar para variável inexistente
+     invalida a regra toda — a pílula sumia em vez de mudar de cor. */
+  --qual-preco:#B26A00; --qual-duvida:#0E7490;
   --sombra:0 1px 2px rgba(16,32,52,.06), 0 8px 24px rgba(16,32,52,.08);
   --sombra-alta:0 2px 4px rgba(16,32,52,.08), 0 16px 40px rgba(16,32,52,.12);
   --relevo:inset 0 1px 0 rgba(255,255,255,.9);
@@ -36,6 +41,7 @@ html[data-tema="dark"]{
   --texto:#F1F3F5; --texto-2:#A7B0B8; --texto-3:#6E7880;
   --destaque:#E3B341; --destaque-bg:rgba(227,179,65,.12);
   --positivo:#43C08A; --negativo:#E06C5A;
+  --qual-preco:#E8A33D; --qual-duvida:#5CBEDD;
   --sombra:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
   --sombra-alta:0 2px 6px rgba(0,0,0,.5), 0 18px 44px rgba(0,0,0,.45);
   --relevo:inset 0 1px 0 rgba(255,255,255,.05);
@@ -807,6 +813,40 @@ tr.queimando td:first-child{box-shadow:inset 3px 0 0 #C4571F}
   font-size:12.5px;color:var(--texto-2);line-height:1.45;
   padding:8px 10px;background:var(--vidro-solido);border-radius:7px;
 }
+
+/* ---- qualificação do lead: os cards da fila e o selo na tabela ---- */
+.isca-qual-cards{
+  display:flex;gap:9px;flex-wrap:wrap;
+}
+.isca-qual-card{
+  flex:1 1 150px;min-width:150px;text-align:left;cursor:pointer;
+  background:var(--vidro-solido);border:1px solid var(--borda);
+  border-left:3px solid var(--cor);
+  border-radius:var(--raio-p);padding:10px 12px;
+  font-family:inherit;color:var(--texto);
+  transition:border-color .12s,background .12s;
+}
+.isca-qual-card:hover{background:var(--fundo-2);border-color:var(--borda-forte)}
+.isca-qual-card.on{
+  border-color:var(--cor);background:var(--destaque-bg);
+}
+.isca-qual-n{
+  font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;
+  line-height:1.15;
+}
+.isca-qual-r{font-size:12px;color:var(--texto-2);line-height:1.35;margin-top:3px}
+.isca-qual-z{font-size:11px;color:var(--texto-3);margin-top:3px}
+
+.isca-qual-tag{
+  display:inline-block;font-size:11.5px;font-weight:600;line-height:1.3;
+  color:var(--cor);border:1px solid var(--cor);border-radius:999px;
+  padding:2px 8px;white-space:nowrap;
+}
+.isca-qual-motivo{
+  font-size:12px;color:var(--texto-2);line-height:1.4;margin-top:5px;
+  max-width:230px;
+}
+.isca-qual-nota{font-size:10.5px;color:var(--texto-3);margin-top:3px}
 
 .isca-td-resp{max-width:340px}
 .isca-resp{font-size:12px;line-height:1.45;margin-bottom:3px}
@@ -1976,6 +2016,7 @@ html[data-tema="light"] .g-venda{background:rgba(15,157,88,.06)}
             Quem preencheu</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <span id="isca-contagem" style="font-size:12.5px;color:var(--texto-3)"></span>
+            <button class="btn" onclick="exportarFilaIsca()">⬇ Exportar fila</button>
             <button class="btn" onclick="carregarEntregasIsca()">Atualizar</button>
           </div>
         </div>
@@ -4597,7 +4638,11 @@ function trocarIsca(slug){
       antes: p.antes || '', imagem: p.imagem || '',
       condicao: p.condicao || null,
       opcoes: (p.opcoes || []).map(function(o){
-        return { valor:o.valor, label:o.label }; })
+        // `intencao` tem que vir junto: e ela que alimenta a fila do
+        // comercial, e sem esta linha a tela mostrava tudo como "sem
+        // sinal" mesmo com o banco marcado.
+        return { valor:o.valor, label:o.label,
+                 intencao:o.intencao || '' }; })
     };
   });
   separarDesfechos(i.desfechos);
@@ -5057,6 +5102,19 @@ function desenharPerguntasIsca(){
               + '<input value="'+esc(o.valor||'')+'" placeholder="valor" '
               + 'oninput="iscaPerguntas['+i+'].opcoes['+j+'].valor=this.value;marcarIscaMudou()" '
               + 'style="width:110px;font-family:var(--mono);font-size:12px">'
+              // O que esta resposta diz sobre intencao de compra. E daqui
+              // que sai a fila do comercial. Deixar "—" e legitimo: opcao
+              // sem intencao nao classifica ninguem, e e o certo para
+              // pergunta que nao fala de compra.
+              + '<select onchange="iscaPerguntas['+i+'].opcoes['+j+']'
+              + '.intencao=this.value;marcarIscaMudou()" '
+              + 'style="width:150px;font-size:12px" title="Sinal de venda">'
+              + INTENCOES.map(function(t){
+                  return '<option value="'+t.valor+'"'
+                    + ((o.intencao||'') === t.valor ? ' selected' : '')
+                    + '>'+t.curto+'</option>';
+                }).join('')
+              + '</select>'
               + '<button class="mini" onclick="removerOpIsca('+i+','+j+')">×</button>'
               + '</div>';
           }).join('')
@@ -5066,6 +5124,42 @@ function desenharPerguntasIsca(){
 
     return h + '</div>';
   }).join('');
+}
+
+/**
+ * O vocabulario da qualificacao.
+ *
+ * Curto e o que aparece no seletor do editor, onde o espaco e de 150px;
+ * rotulo e o que o vendedor le na fila. Os dois saem daqui para nao
+ * divergirem, e os `valor` sao os mesmos que o banco entende — mudar um
+ * lado sem o outro quebra a classificacao em silencio.
+ */
+var INTENCOES = [
+  { valor:'',        curto:'— sem sinal',    rotulo:'Sem sinal',
+    cor:'var(--texto-3)', emoji:'⚪' },
+  { valor:'comprar', curto:'🔥 quer comprar', rotulo:'Quer comprar agora',
+    cor:'var(--destaque)', emoji:'🔥' },
+  { valor:'falar',   curto:'📞 pediu contato', rotulo:'Pediu para falar com a equipe',
+    cor:'var(--positivo)', emoji:'📞' },
+  { valor:'preco',   curto:'💰 travou no preço', rotulo:'Quer, mas travou no preço',
+    cor:'var(--qual-preco)', emoji:'💰' },
+  { valor:'duvida',  curto:'🤔 com dúvidas',  rotulo:'Interessado, com dúvidas',
+    cor:'var(--qual-duvida)', emoji:'🤔' },
+  { valor:'frio',    curto:'❄️ sem interesse', rotulo:'Sem interesse',
+    cor:'var(--texto-3)', emoji:'❄️' }
+];
+
+function intencaoInfo(v){
+  var chave = String(v || '');
+  if(chave === 'comprou'){
+    return { valor:'comprou', rotulo:'Já comprou', emoji:'✅',
+             cor:'var(--positivo)' };
+  }
+  if(chave === 'indefinido') chave = '';
+  for(var k = 0; k < INTENCOES.length; k++){
+    if(INTENCOES[k].valor === chave) return INTENCOES[k];
+  }
+  return INTENCOES[0];
 }
 
 function mudarTipoPergIsca(i, tipo){
@@ -5118,7 +5212,10 @@ async function salvarIsca(){
           valor: (o.valor || ('op'+(j+1))).trim(),
           // Sem rótulo, mostra o valor: opção em branco no formulário é
           // pior que opção com nome técnico.
-          label: (o.label || o.valor || ('Opção '+(j+1)))
+          label: (o.label || o.valor || ('Opção '+(j+1))),
+          // Sem esta linha, salvar a isca APAGAVA a qualificação toda:
+          // o banco recebe as opções inteiras e grava o que vem.
+          intencao: o.intencao || ''
         };
       })
     };
@@ -5225,10 +5322,14 @@ async function carregarEntregasIsca(){
     document.getElementById('isca-contagem').textContent =
       d.total + ' preencheram · ' + d.baixaram + ' baixaram';
 
-    resumo.innerHTML = desenharPorArquivo(d.por_arquivo || [], d.total || 0)
-      + desenharResumoIsca(d.por_resposta || []);
-    alvo.innerHTML = desenharListaIsca(d.entregas || [], d.isca || {});
     entregasIsca = d.entregas || [];
+    classesIsca = d.por_classificacao || [];
+    iscaDaLista = d.isca || {};
+
+    resumo.innerHTML = desenharQualificacao(classesIsca, d.total || 0)
+      + desenharPorArquivo(d.por_arquivo || [], d.total || 0)
+      + desenharResumoIsca(d.por_resposta || []);
+    alvo.innerHTML = desenharListaIsca(entregasIsca, iscaDaLista);
   }catch(e){
     alvo.innerHTML = '';
     avisoIsca('falha de conexão');
@@ -5236,6 +5337,119 @@ async function carregarEntregasIsca(){
 }
 
 var entregasIsca = [];
+var classesIsca = [];
+var iscaDaLista = {};
+var filtroClasse = '';
+
+/**
+ * A fila do comercial, em cards clicaveis.
+ *
+ * O numero de cada card sai da MESMA lista que a tabela embaixo, contada
+ * no banco a partir dela. Card e tabela discordando e o erro que o
+ * cliente descobre na frente do time de vendas.
+ */
+function desenharQualificacao(classes, total){
+  if(!classes.length) return '';
+
+  var vivos = classes.filter(function(c){
+    return c.classificacao !== 'frio' && c.classificacao !== 'comprou'
+        && c.classificacao !== 'indefinido';
+  }).reduce(function(a, c){ return a + Number(c.leads || 0); }, 0);
+
+  return '<div class="isca-resumo"><div class="isca-grupo">'
+    + '<div class="isca-grupo-tit">Fila do comercial '
+    + '<span>' + vivos + ' de ' + total + ' valem ligação</span></div>'
+    + '<div class="isca-qual-cards">'
+    + classes.map(function(c){
+        var info = intencaoInfo(c.classificacao);
+        var on = filtroClasse === c.classificacao;
+        return '<button class="isca-qual-card' + (on ? ' on' : '') + '" '
+          + 'style="--cor:' + info.cor + '" '
+          + 'onclick="filtrarClasse(\'' + esc(c.classificacao) + '\')">'
+          + '<div class="isca-qual-n">' + info.emoji + ' ' + c.leads + '</div>'
+          + '<div class="isca-qual-r">' + esc(c.rotulo || info.rotulo) + '</div>'
+          + (Number(c.com_whatsapp || 0) !== Number(c.leads || 0)
+              ? '<div class="isca-qual-z">' + c.com_whatsapp + ' com WhatsApp</div>'
+              : '')
+          + '</button>';
+      }).join('')
+    + '</div>'
+    + (filtroClasse
+        ? '<div class="isca-dica">Mostrando só um grupo. '
+          + '<button class="mini" onclick="filtrarClasse(\'\')">'
+          + 'Ver todos</button></div>'
+        : '')
+    + '</div></div>';
+}
+
+/**
+ * Clicar no mesmo card duas vezes tira o filtro — e o que a pessoa
+ * tenta fazer antes de procurar um botao de limpar.
+ *
+ * Redesenha recarregando, em vez de remendar os tres pedacos (cards,
+ * barras e tabela) a mao: sincronizar isso na unha e como card e tabela
+ * passam a discordar.
+ */
+function filtrarClasse(c){
+  filtroClasse = (filtroClasse === c) ? '' : c;
+  carregarEntregasIsca();
+}
+
+/**
+ * Exporta a fila para o time comercial.
+ *
+ * Ponto e virgula, e nao virgula: o Excel em portugues abre CSV de
+ * virgula tudo numa coluna so. E o BOM no inicio e o que faz "João"
+ * chegar como João e nao como JoÃ£o.
+ */
+function exportarFilaIsca(){
+  var lista = entregasIsca.filter(function(e){
+    return !filtroClasse || e.classificacao === filtroClasse;
+  });
+  if(!lista.length) return avisoIsca('nada para exportar neste filtro');
+
+  var col = ['Prioridade','Lead','Email','WhatsApp','Qualificacao',
+             'O que ele respondeu','Em qual pergunta','Nota','Ja comprou',
+             'Baixou','Preencheu em','Link do material'];
+
+  var cel = function(v){
+    var t = String(v === null || v === undefined ? '' : v);
+    // aspas dentro do campo dobram; e qualquer ; " ou quebra de linha
+    // obriga a envolver o campo todo
+    if(/[";\n\r]/.test(t)) return '"' + t.replace(/"/g, '""') + '"';
+    return t;
+  };
+
+  var linhas = [col.join(';')];
+  lista.forEach(function(e, n){
+    var info = intencaoInfo(e.classificacao);
+    linhas.push([
+      n + 1,
+      e.nome || '',
+      e.email || '',
+      e.whatsapp || '',
+      info.rotulo,
+      e.motivo || '',
+      e.de_qual_pergunta || '',
+      e.nota,
+      e.comprou ? 'sim' : 'nao',
+      e.baixou ? ((e.baixou_quais || []).join(' | ') || 'sim') : 'nao',
+      dataCurta(e.criado_em),
+      API + '/c/' + e.codigo
+    ].map(cel).join(';'));
+  });
+
+  var nome = 'fila-' + (iscaDaLista.slug || 'entregas')
+    + (filtroClasse ? '-' + filtroClasse : '') + '.csv';
+  var blob = new Blob(['\ufeff' + linhas.join('\r\n')],
+    { type:'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nome;
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+  mostrarToast(lista.length + ' leads exportados');
+}
 
 /**
  * Quantos pegaram cada arquivo.
@@ -5312,11 +5526,23 @@ function desenharListaIsca(lista, isca){
 
   var ehCert = isca.tipo === 'certificado';
 
+  // Filtra na hora de desenhar, MANTENDO o indice original: os botoes
+  // de acao chamam por indice em `entregasIsca`, e reindexar aqui faria
+  // "abrir o arquivo do lead" abrir o arquivo de outra pessoa.
+  var visiveis = lista.filter(function(e){
+    return !filtroClasse || e.classificacao === filtroClasse;
+  });
+  if(!visiveis.length){
+    return '<div class="vazio">Nenhum lead neste grupo. '
+      + '<button class="mini" onclick="filtrarClasse(\'\')">Ver todos</button></div>';
+  }
+
   return '<div class="rolagem"><table><thead><tr>'
-    + '<th>Lead</th><th>Respostas</th><th>Quando</th>'
+    + '<th>Lead</th><th>Qualificação</th><th>Respostas</th><th>Quando</th>'
     + '<th>Baixou</th><th>Ações</th>'
     + '</tr></thead><tbody>'
     + lista.map(function(e, i){
+        if(filtroClasse && e.classificacao !== filtroClasse) return '';
         var resp = (e.respostas || []).map(function(r){
           return '<div class="isca-resp"><span>'+esc(r.pergunta)+'</span> '
             + esc(r.resposta)+'</div>';
@@ -5327,6 +5553,20 @@ function desenharListaIsca(lista, isca){
           + '<div class="sub">'+esc(e.email || '—')+'</div>'
           + (e.comprou ? '<span class="pilula" style="font-size:10px">comprou</span>' : '')
           + '</td>'
+
+          // A qualificacao com o MOTIVO embaixo. O rotulo sozinho diz
+          // por quem ligar; a frase que a pessoa escolheu diz como
+          // abrir a conversa — e e a segunda que faz a ligacao render.
+          + '<td>' + (function(){
+              var info = intencaoInfo(e.classificacao);
+              return '<span class="isca-qual-tag" style="--cor:'+info.cor+'">'
+                + info.emoji + ' ' + esc(info.rotulo) + '</span>'
+                + (e.motivo
+                    ? '<div class="isca-qual-motivo">“'+esc(e.motivo)+'”</div>'
+                    : '')
+                + '<div class="isca-qual-nota">prioridade '+(e.nota||0)+'</div>';
+            })() + '</td>'
+
           + '<td class="isca-td-resp">'+resp+'</td>'
           + '<td>'+dataCurta(e.criado_em)+'</td>'
           + '<td>'+(e.baixou
